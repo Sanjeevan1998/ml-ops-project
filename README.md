@@ -146,7 +146,7 @@ The table below shows an example, it is not a recommendation. -->
 |---------------------|-------------------------|---------------|
 | **m1.medium VMs**  | 3 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (GitHub Actions, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
 | **Any available GPU** | 2 GPUs, 8-hour blocks, twice weekly | GPUs are required for fine-tuning transformer-based NLP models (BART, RoBERTa, DistilBERT). Transformer models are GPU-intensive, and distributed training (Ray Train) and hyperparameter tuning (Ray Tune) require GPUs with ample memory and compute power. |
-| **Persistent Storage** | 200 GB for entire project duration | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
+| **Persistent Storage** | 65-70 GB for entire project duration | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and psychologist dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
 
