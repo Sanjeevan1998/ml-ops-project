@@ -44,12 +44,11 @@ The system will be used in psychological counseling practices or online therapy 
 ##### Sensitive Data: Patient journals contain highly sensitive personal information. Ensuring data privacy is paramount.
 ##### Preventive Measures:
 * All data will be anonymized and encrypted during processing and storage.
-* The system will comply with data protection regulations such as HIPAA (Health Insurance Portability and Accountability Act) in the U.S. or GDPR (General Data Protection Regulation) in the EU.
 * Personally identifiable information (PII) such as names, locations, and other sensitive details will be removed during preprocessing.
 
 
 #### Fairness Concerns:
-##### Bias in Sentiment and Emotion Analysis: The system must avoid biases that could arise from training data, such as cultural or linguistic differences in journal entries leading to inaccurate or unfair assessments.
+##### Bias in Sentiment and Emotion Analysis: The system should avoid biases that could arise from training data, such as cultural or linguistic differences in journal entries leading to inaccurate or unfair assessments.
 ##### Preventive Measures:
 * Use diverse and representative datasets during training to minimize bias.
 * Regularly evaluate the system for fairness using fairness metrics and domain-specific tests.
@@ -107,6 +106,7 @@ conditions under which it may be used. -->
 | Name | How it was created | Conditions of use |  
 |------------------------------------|--------------------|-------------------|  
 | [**Sentiment Analysis Dataset**](https://www.kaggle.com/datasets/abhi8923shriv/sentiment-analysis-dataset) | Labeled dataset for sentiment analysis tasks, useful for training models on positive/negative sentiment detection | Available for research and commercial use under Kaggle's dataset terms |  
+| [**GoEmotions**](https://www.kaggle.com/datasets/debarshichanda/goemotions) | GoEmotions is a corpus of 58k carefully curated comments extracted from Reddit, with human annotations to 27 emotion categories or Neutral. | Available for research and commercial use under Kaggle's dataset terms |
 | [**Sentiment Analysis for Mental Health**](https://www.kaggle.com/datasets/suchintikasarkar/sentiment-analysis-for-mental-health) | Focuses on sentiment classification specific to mental health discussions | Available for research purposes, subject to Kaggle's data use policies |  
 | [**Suicidal Tweet Detection Dataset**](https://www.kaggle.com/datasets/aunanya875/suicidal-tweet-detection-dataset) | Tweets labeled based on suicidal intent, useful for NLP-based risk detection | Requires ethical considerations and adherence to platform policies |  
 | [**Suicidal Mental Health Dataset**](https://www.kaggle.com/datasets/aradhakkandhari/suicidal-mental-health-dataset) | Text dataset focused on mental health and suicide risk classification | Available for academic and research purposes |  
