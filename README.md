@@ -280,7 +280,7 @@ We will implement two types of data pipelines to handle the ingestion, processin
 **Offline ETL Pipeline (Batch Processing)**:
 - Built using **Apache Airflow**, this pipeline will handle batch processing of raw datasets (e.g., Mental Health Reddit Dataset, GoEmotions).
 - The pipeline will extract, clean, preprocess, and transform the data into a format suitable for training our models.
-- Processed datasets will be stored in persistent storage (200GB) on **Chameleon Cloud** for use in model training and retraining.
+- Processed datasets will be stored in persistent storage (65-70GB) on **Chameleon Cloud** for use in model training and retraining.
 
 **Online Streaming Pipeline (Real-Time Processing)**:
 - Built using **Kafka** and **Zookeeper**, this pipeline will simulate real-time patient journal entries being ingested into the system. We might use Kafka (or a lightweight queue like Redis Streams, if complexity is too high) to simulate real-time entry streaming.
