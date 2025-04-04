@@ -21,10 +21,10 @@ link to their contributions in all repos here. -->
 | Name                            | Responsible for| Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
 | All team members                |Idea formulation, value proposition, ML problem setup, integration|     NA                               |
-| Arnab Bhowal                   |Model training (Units 4 & 5)|        https://github.com/Sanjeevan1998/mindful/commits/main/?author=arnabbhowal                            |
-| Sanjeevan Adhikari                   |Model serving (Unit 6) and monitoring (Unit 7)|             https://github.com/Sanjeevan1998/mindful/commits/main/?author=Sanjeevan1998                       |
-| Divya Chougule                   |Data pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/mindful/commits/main/?author=divyaa25                   |
-| Vishwas Karale                   |CICD pipeline|                   https://github.com/Sanjeevan1998/mindful/commits/main/?author=vishwaskarale83                 |
+| Arnab Bhowal                   |Model Training|        https://github.com/Sanjeevan1998/mindful/commits/main/?author=arnabbhowal                            |
+| Sanjeevan Adhikari                   |Model Serving and Monitoring|             https://github.com/Sanjeevan1998/mindful/commits/main/?author=Sanjeevan1998                       |
+| Divya Chougule                   |Data Pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/mindful/commits/main/?author=divyaa25                   |
+| Vishwas Karale                   |Continous X Pipeline|                   https://github.com/Sanjeevan1998/mindful/commits/main/?author=vishwaskarale83                 |
 
 
 
@@ -106,13 +106,13 @@ We will fine-tune three pre-trained transformer models to build our ML assistant
 
 We will perform initial fine-tuning of these models using publicly available mental health datasets (e.g., Mental Health Reddit Dataset, GoEmotions). After initial training, we will periodically retrain these models using updated labeled data collected from simulated production usage.
 
-To efficiently train these transformer models, we will use distributed training strategies (Ray Train with Distributed Data Parallel - DDP) on GPU nodes (RTX6000 GPUs). Additionally, we will perform hyperparameter tuning using Ray Tune to optimize model performance. All experiments, hyperparameters, metrics, and model artifacts will be tracked using MLFlow, hosted on Chameleon infrastructure.
+To efficiently train these transformer models, we will use distributed training strategies (Ray Train with Distributed Data Parallel - DDP) on GPU nodes. Additionally, we will perform hyperparameter tuning using Ray Tune to optimize model performance. All experiments, hyperparameters, metrics, and model artifacts will be tracked using MLFlow, hosted on Chameleon infrastructure.
 
 ### Relevant parts of the diagram:
 - **Kubernetes Cluster → Model Training & Experiment Tracking:**
   - Ray Cluster (Distributed Training & Hyperparameter Tuning)
   - MLFlow Server (Experiment Tracking)
-  - GPU Nodes (RTX6000 GPUs)
+  - GPU Nodes
 
 ### Justification for our strategy:
 - **Transformer Models**: BART, RoBERTa, and DistilBERT are state-of-the-art NLP models widely recognized for their effectiveness in summarization, sentiment analysis, and text classification tasks, respectively. Fine-tuning these models on domain-specific mental health data ensures high accuracy and relevance for therapists.
@@ -133,7 +133,7 @@ To efficiently train these transformer models, we will use distributed training 
 - **Difficulty point attempted**: Hyperparameter tuning using Ray Tune, leveraging advanced tuning algorithms (e.g., Bayesian optimization, HyperBand) to efficiently optimize model performance.
 
 ### Specific numbers and details:
-- **GPU Resources**: 2 RTX6000 GPUs (24GB VRAM each), scheduled in 8-hour blocks, twice weekly.
+- **GPU Resources**: 2 GPUs, scheduled in 8-hour blocks, twice weekly.
 - **Models**: 3 transformer models (BART-base, RoBERTa-base, DistilBERT-base).
 - **Distributed Training**: Ray Train with Distributed Data Parallel (DDP), comparing training times with 1 GPU vs. 2 GPUs.
 - **Hyperparameter Tuning**: Ray Tune with Bayesian optimization or HyperBand, exploring at least 10-20 hyperparameter configurations per model.
@@ -158,14 +158,144 @@ and which optional "difficulty" points you are attempting. -->
 <!-- Make sure to clarify how you will satisfy the Unit 6 and Unit 7 requirements, 
 and which optional "difficulty" points you are attempting. -->
 
+We will deploy our fine-tuned models as APIs using FastAPI, which is known for its speed and ease of use. The models will be containerized using Docker and orchestrated with Kubernetes on Chameleon Cloud. This setup allows for efficient scaling and management of our model-serving infrastructure.
+
+To ensure optimal performance, we will implement model-level optimizations such as quantization and ONNX conversion, which reduce model size and improve inference speed. We will also compare CPU and GPU serving options to determine the most cost-effective and performant solution for our application.
+
+For monitoring, we will utilize Prometheus for collecting metrics and Grafana for visualizing these metrics in real-time. This monitoring setup will help us track model performance, latency, and resource utilization. Additionally, we will implement automated load testing to simulate user interactions and evaluate the system's performance under different loads.
+
+To address potential issues with model performance, we will set up data and model drift monitoring. If significant drift is detected, our system will trigger automatic retraining of the models to maintain accuracy and relevance.
+
+### Relevant parts of the diagram:
+- **Kubernetes Cluster → Model Serving API (FastAPI, Models)**
+- **Kubernetes Cluster → Monitoring & Evaluation (Prometheus, Grafana, Load Tests, Drift Monitoring)**
+- **Staged Deployment (Staging → Canary → Production)**
+
+### Justification for our strategy:
+- **FastAPI** is an excellent choice for serving machine learning models due to its high performance and ease of integration with Python-based ML frameworks. It allows us to create RESTful APIs quickly, enabling therapists to access model predictions seamlessly.
+- **Docker** ensures that our models and their dependencies are packaged consistently, making deployment straightforward across different environments. This containerization also simplifies scaling and management within Kubernetes.
+- **Kubernetes** provides robust orchestration capabilities, allowing us to manage multiple instances of our model-serving APIs efficiently. It also supports automatic scaling based on demand, ensuring that we can handle varying loads effectively.
+- **Prometheus** and **Grafana** are industry-standard tools for monitoring and visualization. They allow us to track key performance metrics, ensuring that we can respond quickly to any issues that arise in production.
+- Implementing **automated load testing** and **drift monitoring** ensures that our system remains reliable and accurate over time, addressing potential performance degradation proactively.
+
+### Relation back to lecture material (Units 6 & 7):
+
+#### Unit 6 (Model serving):
+- We satisfy the requirement to serve models via APIs using FastAPI, ensuring low-latency access for therapists.
+- We will compare CPU vs. GPU serving options to optimize performance and cost.
+- **Difficulty point attempted**: Develop multiple serving options (CPU vs. GPU).
+
+#### Unit 7 (Monitoring):
+- We satisfy the requirement for monitoring model performance and resource utilization using Prometheus and Grafana.
+- We will implement automated load tests to evaluate system performance under various conditions.
+- We will monitor for data and model drift, triggering automatic retraining when necessary.
+- **Difficulty point attempted**: Monitor data drift/model degradation and implement automatic retraining.
+
+### Specific numbers and details:
+- **Serving Requirements**:
+  - **Latency requirement**: <100ms per inference
+  - **Concurrency requirement**: ~50 simultaneous requests
+- **Monitoring Metrics**:
+  - Track latency, throughput, and resource utilization (CPU/GPU usage).
+- **Load Testing**:
+  - Simulate realistic user interactions with at least 100 concurrent users during load tests.
+
+### Summary of Difficulty Points Attempted (Units 6 & 7):
+
+| Unit | Difficulty Point Selected      | Explanation |
+|------|--------------------------------|-------------|
+| 6    | CPU vs. GPU serving comparison | We will evaluate performance and cost-effectiveness of serving models on CPU vs. GPU. |
+| 7    | Data drift/model degradation monitoring & automatic retraining | We will implement monitoring to detect drift and trigger retraining to maintain model accuracy. |
+
+
+
 #### Data pipeline
 
 <!-- Make sure to clarify how you will satisfy the Unit 8 requirements,  and which 
 optional "difficulty" points you are attempting. -->
 
+
+We will implement two types of data pipelines to handle the ingestion, processing, and storage of data for our ML Assistant for Therapists:
+
+**Offline ETL Pipeline (Batch Processing)**:
+- Built using **Apache Airflow**, this pipeline will handle batch processing of raw datasets (e.g., Mental Health Reddit Dataset, GoEmotions).
+- The pipeline will extract, clean, preprocess, and transform the data into a format suitable for training our models.
+- Processed datasets will be stored in persistent storage (200GB) on **Chameleon Cloud** for use in model training and retraining.
+
+**Online Streaming Pipeline (Real-Time Processing)**:
+- Built using **Kafka** and **Zookeeper**, this pipeline will simulate real-time patient journal entries being ingested into the system.
+- The streaming data will be used for inference (model predictions) and monitoring (e.g., detecting data drift or anomalies).
+- The pipeline will also store incoming data in persistent storage for further analysis and retraining.
+
+### Relevant parts of the diagram:
+- **Kubernetes Cluster → Data Pipelines**:
+  - **Kafka/Zookeeper** (Online streaming pipeline)
+  - **Apache Airflow** (Offline ETL pipeline)
+- **Persistent Storage (200GB)**:
+  - Stores raw and processed datasets, model artifacts, and inference data.
+
+### Justification for our strategy:
+- **Offline ETL Pipeline**: Batch processing is ideal for preparing large datasets for training and retraining. **Apache Airflow** is a widely-used workflow orchestration tool that allows us to define, schedule, and monitor ETL tasks efficiently. It ensures that our data is clean, consistent, and ready for use in model training.
+- **Online Streaming Pipeline**: Real-time data ingestion is critical for simulating patient journal entries and testing our system's inference and monitoring capabilities. **Kafka** is a robust, scalable, and fault-tolerant platform for real-time data streaming, making it an excellent choice for this purpose.
+- **Persistent Storage**: Ensures that all raw and processed data, as well as model artifacts, are securely stored and easily accessible for training, inference, and monitoring.
+
+### Relation back to lecture material (Unit 8):
+- **Persistent Storage**: We satisfy the requirement to provision persistent storage for datasets, models, and artifacts.
+- **Offline Data Pipeline**: We satisfy the requirement to set up an ETL pipeline for batch processing of training data.
+- **Online Data Pipeline**: We satisfy the requirement to simulate realistic online data streams for inference and monitoring.
+
+### Specific numbers and details:
+- **Persistent Storage**: 200GB on Chameleon Cloud.
+- **Offline Pipeline**: Processes datasets (e.g., Mental Health Reddit Dataset, GoEmotions) with approximately 10,000-50,000 entries.
+- **Online Pipeline**: Simulates real-time journal entries at a rate of ~100 entries per hour.
+
+### Optional Difficulty Point Attempted:
+- **Interactive Data Dashboard**: We will implement an interactive dashboard (using **Grafana**) to provide insights into data quality, such as missing values, outliers, and distribution changes over time. This dashboard will help us monitor and improve the quality of our training and inference data.
+
+
+
 #### Continuous X
 
 <!-- Make sure to clarify how you will satisfy the Unit 3 requirements,  and which 
 optional "difficulty" points you are attempting. -->
+
+To ensure the reliability, reproducibility, and scalability of our ML Assistant for Therapists, we will implement a robust Continuous X (CI/CD) pipeline using a combination of industry-standard tools and practices.
+
+**Infrastructure-as-Code**:
+- We will use **Terraform** to define and provision our infrastructure on **Chameleon Cloud**, including the Kubernetes cluster, persistent storage, and networking resources.
+- Additionally, we will use **Ansible** to automate the configuration and setup of these infrastructure components, ensuring a consistent and reliable environment.
+
+**Automation and CI/CD**:
+- Our CI/CD pipeline will be implemented using **GitHub Actions** and **ArgoCD**. Whenever changes are made to our codebase (e.g., model updates, API changes, infrastructure modifications), the CI/CD pipeline will be triggered to:
+  - Automatically build and test the changes.
+  - Package the application components (models, APIs, data pipelines) into **Docker containers**.
+  - Deploy the containerized components to our **Kubernetes cluster** in a staged manner (**staging → canary → production**).
+
+**Staged Deployment**:
+- We will implement a staged deployment strategy to ensure the reliability and safety of our production environment. New model versions, API updates, and infrastructure changes will first be deployed to a **staging** environment for initial testing and evaluation. Once the changes have been validated, they will be gradually rolled out to a **canary** environment for further testing with simulated user interactions. Finally, the changes will be promoted to the **production** environment after successful canary evaluation.
+
+**Cloud-Native Principles**:
+- Throughout our Continuous X pipeline, we will adhere to cloud-native principles, such as:
+  - **Immutable Infrastructure**: Infrastructure components will be defined as code and provisioned in a repeatable manner, ensuring consistency and reliability.
+  - **Microservices Architecture**: Our application will be designed as a collection of loosely coupled, independently deployable services (e.g., model serving, data pipelines, monitoring).
+  - **Containerization**: All application components will be packaged as **Docker containers**, enabling consistent deployment across different environments.
+
+### Justification for our strategy:
+- **Infrastructure-as-Code (Terraform, Ansible)**: Defining infrastructure as code ensures consistency, reproducibility, and easy management of our Chameleon Cloud resources.
+- **Automation and CI/CD (GitHub Actions, ArgoCD)**: Automating the build, test, and deployment processes reduces manual effort, minimizes errors, and enables rapid iteration.
+- **Staged Deployment**: Gradually rolling out changes to different environments (staging, canary, production) helps us identify and mitigate issues before impacting end-users.
+- **Cloud-Native Principles**: These principles improve the scalability, reliability, and maintainability of our application, aligning with industry best practices.
+
+### Relation back to lecture material (Unit 3):
+- **Infrastructure-as-Code**: We satisfy the requirement to use **Terraform** and **Ansible** for infrastructure provisioning and configuration.
+- **Automation and CI/CD**: We satisfy the requirement to implement a CI/CD pipeline using **GitHub Actions** and **ArgoCD**.
+- **Staged Deployment**: We satisfy the requirement to implement a staged deployment strategy (**staging → canary → production**).
+- **Cloud-Native Principles**: We satisfy the requirement to develop our application using cloud-native principles.
+
+### Specific numbers and details:
+- **Infrastructure-as-Code**: We will define all **Chameleon Cloud** resources (VMs, storage, networking) using **Terraform** scripts.
+- **Automation and CI/CD**: **GitHub Actions** will be triggered on code commits, running tests and building **Docker** images. **ArgoCD** will then deploy the new versions to our **Kubernetes cluster**.
+- **Staged Deployment**: We will have three distinct environments (**staging, canary, production**) for gradual rollout of changes.
+- **Cloud-Native Principles**: Our application will be designed as a collection of **Docker containers**, with each component (models, APIs, data pipelines) deployed as a separate **microservice**.
 
 
