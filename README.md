@@ -20,11 +20,11 @@ link to their contributions in all repos here. -->
 
 | Name                            | Responsible for| Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
-| All team members                |Idea formulation, value proposition, ML problem setup, integration|                                    |
-| Arnab Bhowal                   |Model training (Units 4 & 5)|                                    |
-| Sanjeevan Adhikari                   |Model serving (Unit 6) and monitoring (Unit 7)|                                    |
-| Divya Chougule                   |Data pipeline (Unit 8)|                                    |
-| Vishwas Karale                   |CICD pipeline|                                    |
+| All team members                |Idea formulation, value proposition, ML problem setup, integration|     NA                               |
+| Arnab Bhowal                   |Model training (Units 4 & 5)|        https://github.com/Sanjeevan1998/mindful/commits/main/?author=arnabbhowal                            |
+| Sanjeevan Adhikari                   |Model serving (Unit 6) and monitoring (Unit 7)|             https://github.com/Sanjeevan1998/mindful/commits/main/?author=Sanjeevan1998                       |
+| Divya Chougule                   |Data pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/mindful/commits/main/?author=divyaa25                   |
+| Vishwas Karale                   |CICD pipeline|                   https://github.com/Sanjeevan1998/mindful/commits/main/?author=vishwaskarale83                 |
 
 
 
@@ -80,12 +80,15 @@ conditions under which it may be used. -->
 how much/when, justification. Include compute, floating IPs, persistent storage. 
 The table below shows an example, it is not a recommendation. -->
 
-| Requirement     | How many/when                                     | Justification |
-|-----------------|---------------------------------------------------|---------------|
-| `m1.medium` VMs | 3 for entire project duration                     | ...           |
-| `gpu_mi100`     | 4 hour block twice a week                         |               |
-| Floating IPs    | 1 for entire project duration, 1 for sporadic use |               |
-| etc             |                                                   |               |
+## Resource Requirements  
+
+| Requirement         | Quantity/Duration         | Justification  |
+|---------------------|-------------------------|---------------|
+| **m1.medium VMs**  | 3 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (GitHub Actions, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
+| **Any available GPU** | 2 GPUs, 8-hour blocks, twice weekly | GPUs are required for fine-tuning transformer-based NLP models (BART, RoBERTa, DistilBERT). Transformer models are GPU-intensive, and distributed training (Ray Train) and hyperparameter tuning (Ray Tune) require GPUs with ample memory and compute power. |
+| **Persistent Storage** | 200 GB for entire project duration | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
+| **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and psychologist dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
+
 
 ### Detailed design plan
 
@@ -95,8 +98,60 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 #### Model training and training platforms
 
+
+We will fine-tune three pre-trained transformer models to build our ML assistant for therapists:
+- **Summarization Model**: BART-base (for summarizing patient journal entries)
+- **Sentiment Analysis Model**: RoBERTa-base (for detecting emotions and sentiment)
+- **Risk Detection Model**: DistilBERT-base (for identifying concerning or risky content)
+
+We will perform initial fine-tuning of these models using publicly available mental health datasets (e.g., Mental Health Reddit Dataset, GoEmotions). After initial training, we will periodically retrain these models using updated labeled data collected from simulated production usage.
+
+To efficiently train these transformer models, we will use distributed training strategies (Ray Train with Distributed Data Parallel - DDP) on GPU nodes (RTX6000 GPUs). Additionally, we will perform hyperparameter tuning using Ray Tune to optimize model performance. All experiments, hyperparameters, metrics, and model artifacts will be tracked using MLFlow, hosted on Chameleon infrastructure.
+
+### Relevant parts of the diagram:
+- **Kubernetes Cluster → Model Training & Experiment Tracking:**
+  - Ray Cluster (Distributed Training & Hyperparameter Tuning)
+  - MLFlow Server (Experiment Tracking)
+  - GPU Nodes (RTX6000 GPUs)
+
+### Justification for our strategy:
+- **Transformer Models**: BART, RoBERTa, and DistilBERT are state-of-the-art NLP models widely recognized for their effectiveness in summarization, sentiment analysis, and text classification tasks, respectively. Fine-tuning these models on domain-specific mental health data ensures high accuracy and relevance for therapists.
+- **Distributed Training (Ray Train with DDP)**: Transformer models are computationally intensive and require significant GPU resources. Distributed training allows us to significantly reduce training time, enabling faster experimentation and iteration.
+- **Hyperparameter Tuning (Ray Tune)**: Transformer models' performance heavily depends on hyperparameters (learning rate, batch size, epochs, etc.). Ray Tune efficiently explores hyperparameter spaces, ensuring optimal model performance.
+- **Experiment Tracking (MLFlow)**: MLFlow provides reproducibility, experiment management, and easy comparison of model performance across experiments, essential for systematic model development.
+
+### Relation back to lecture material (Units 4 & 5):
+
+#### Unit 4 (Model training at scale):
+- We satisfy the requirement to train and retrain at least one model (we train three).
+- We make reasonable, appropriate, and well-justified modeling choices (transformer models fine-tuned on relevant datasets).
+- **Difficulty point attempted**: Distributed training (Ray Train with DDP) to increase training velocity. We will conduct experiments comparing training times using one GPU vs. two GPUs, clearly documenting speedups and efficiency gains.
+
+#### Unit 5 (Model training infrastructure and platform):
+- We satisfy the requirement to host an experiment tracking server (MLFlow) on Chameleon and instrument our training code with logging calls.
+- We satisfy the requirement to run a Ray cluster and submit training jobs as part of our continuous training pipeline.
+- **Difficulty point attempted**: Hyperparameter tuning using Ray Tune, leveraging advanced tuning algorithms (e.g., Bayesian optimization, HyperBand) to efficiently optimize model performance.
+
+### Specific numbers and details:
+- **GPU Resources**: 2 RTX6000 GPUs (24GB VRAM each), scheduled in 8-hour blocks, twice weekly.
+- **Models**: 3 transformer models (BART-base, RoBERTa-base, DistilBERT-base).
+- **Distributed Training**: Ray Train with Distributed Data Parallel (DDP), comparing training times with 1 GPU vs. 2 GPUs.
+- **Hyperparameter Tuning**: Ray Tune with Bayesian optimization or HyperBand, exploring at least 10-20 hyperparameter configurations per model.
+- **Experiment Tracking**: MLFlow server hosted on Chameleon, logging all experiments, hyperparameters, metrics, and artifacts.
+
+### Summary of Difficulty Points Attempted (Units 4 & 5):
+
+| Unit | Difficulty Point Selected      | Explanation |
+|------|--------------------------------|-------------|
+| 4    | Distributed training (Ray Train with DDP) | We will demonstrate training speedups by comparing single-GPU vs. multi-GPU training times. |
+| 5    | Hyperparameter tuning (Ray Tune) | We will use advanced tuning algorithms to efficiently optimize model performance. |
+
+
+
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, 
 and which optional "difficulty" points you are attempting. -->
+
+
 
 #### Model serving and monitoring platforms
 
