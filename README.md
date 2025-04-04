@@ -7,14 +7,14 @@ Our machine learning system integrates directly into existing psychological coun
 
 #### Currently, psychologists manually review patient journal entries, which is:
 * Time-consuming: Reviewing and analyzing large volumes of text takes significant time and effort.
-* Subjective: Interpretations of emotional patterns and risks can vary between psychologists, leading to inconsistencies.
+* Subjective: Emotional assessments are subjective and inconsistent.
 * Prone to oversight: Subtle emotional cues or trends may be missed, especially when dealing with extensive or complex journal entries.
 * Difficult to scale: As the number of patients increases, the manual process becomes unsustainable, limiting the number of patients a psychologist can effectively support.
 
 ### Business Metrics:
 
 #### The success of the "Mindful" system will be judged on the following business metrics:
-* Reduction in Time Spent Reviewing Journals: The system should significantly decrease the time psychologists spend on manual journal reviews.
+* Reduction in Time Spent Reviewing Journals per session: In current therapy workflows, therapists typically spend 5–10 minutes reading through raw journal entries prior to a session to prepare. With our system, ML-generated summaries reduce the required reading time to ~1 minute, allowing therapists to grasp key emotional trends and critical events more quickly. That's 4-9 minutes saved per session.
 * Improved Detection Accuracy: The system's ability to identify emotional patterns, risks, and concerning themes should outperform manual reviews.
 * Psychologist Satisfaction and Usability: Feedback from psychologists on the system's ease of use, reliability, and effectiveness will be critical.
 * Patient Outcomes: Indirectly, the system's impact on patient progress and therapeutic success can also serve as a measure of its value.
@@ -283,7 +283,7 @@ We will implement two types of data pipelines to handle the ingestion, processin
 - Processed datasets will be stored in persistent storage (200GB) on **Chameleon Cloud** for use in model training and retraining.
 
 **Online Streaming Pipeline (Real-Time Processing)**:
-- Built using **Kafka** and **Zookeeper**, this pipeline will simulate real-time patient journal entries being ingested into the system.
+- Built using **Kafka** and **Zookeeper**, this pipeline will simulate real-time patient journal entries being ingested into the system. We might use Kafka (or a lightweight queue like Redis Streams, if complexity is too high) to simulate real-time entry streaming.
 - The streaming data will be used for inference (model predictions) and monitoring (e.g., detecting data drift or anomalies).
 - The pipeline will also store incoming data in persistent storage for further analysis and retraining.
 
