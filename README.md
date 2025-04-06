@@ -89,9 +89,7 @@ link to their contributions in all repos here. -->
 
 ### System diagram
 
-![System Diagram](https://raw.githubusercontent.com/Sanjeevan1998/mindful/refs/heads/main/SystemDiagram.jpeg)
-
-
+![System Diagram](https://raw.githubusercontent.com/Sanjeevan1998/mindful/refs/heads/main/Mindful_System_Diagram.png)
 
 ### Summary of outside materials
 
@@ -128,11 +126,9 @@ conditions under which it may be used. -->
 
 | Name      | How it was created | Conditions of use |
 |----------|--------------------|-------------------|
-| [**BART**](https://huggingface.co/docs/transformers/v4.46.0/model_doc/bart)      | Sequence-to-sequence model with absolute position embeddings, designed for text generation and summarization | MIT License - allows free use, modification, and distribution with inclusion of original license and copyright notice |
-| [**RoBERTa**](https://huggingface.co/docs/transformers/en/model_doc/roberta)   | Robustly optimized BERT approach, trained with more data and longer sequences than BERT | MIT License - similar to BART, allowing wide usage and modification |
-| [**DistilBERT**](https://huggingface.co/docs/transformers/en/model_doc/distilbert) | Distilled version of BERT, combining language modeling, distillation, and cosine-distance losses | Apache 2.0 License - permits use, distribution, and modification with license copy inclusion |
-
-
+| [**LLaMA 3.2 1B**](https://huggingface.co/meta-llama/Llama-3.2-1B) |  A lightweight, decoder-only transformer model from Meta’s LLaMA 3.2 series. Optimized for instruction following, summarization, and reasoning, while being suitable for fine-tuning and inference on limited compute.         | Meta AI License - available for research and non-commercial use                   |
+| [**DeBERTa-v3-base**](https://huggingface.co/microsoft/deberta-v3-base)       | Disentangled attention mechanism with improved mask decoder; optimized for classification and sentiment analysis | MIT License – allows free use, modification, and commercial/academic distribution |
+| [**DeBERTa-v3-small**](https://huggingface.co/microsoft/deberta-v3-small)     | Smaller, efficient version of DeBERTa-v3 with reduced parameter count, ideal for low-latency risk classification | MIT License – allows free use, modification, and commercial/academic distribution |
 
 ### Summary of infrastructure requirements
 
@@ -140,12 +136,13 @@ conditions under which it may be used. -->
 how much/when, justification. Include compute, floating IPs, persistent storage. 
 The table below shows an example, it is not a recommendation. -->
 
+
 ## Resource Requirements  
 
 | Requirement         | Quantity/Duration         | Justification  |
 |---------------------|-------------------------|---------------|
 | **m1.medium VMs**  | 3 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (GitHub Actions, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
-| **Any available GPU** | 2 GPUs, 8-hour blocks, twice weekly | GPUs are required for fine-tuning transformer-based NLP models (BART, RoBERTa, DistilBERT). Transformer models are GPU-intensive, and distributed training (Ray Train) and hyperparameter tuning (Ray Tune) require GPUs with ample memory and compute power. |
+| **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | GPUs are needed for fine-tuning the LLaMA 3.2 1B (a lightweight decoder-only LLM) using QLoRA, and for efficient training of DeBERTa-v3-base and DeBERTa-v3-small (encoder models for classification tasks). Distributed training with Ray Train and targeted hyperparameter tuning using Ray Tune will be used to maximize GPU utilization within the limited compute window. |
 | **Persistent Storage** | 150GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and psychologist dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
@@ -160,9 +157,9 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 
 We will fine-tune three pre-trained transformer models to build our ML assistant for therapists:
-- **Summarization Model**: BART-base (for summarizing patient journal entries)
-- **Sentiment Analysis Model**: RoBERTa-base (for detecting emotions and sentiment)
-- **Risk Detection Model**: DistilBERT-base (for identifying concerning or risky content)
+- **Summarization Model**: LLaMA 3.2 1B (for summarizing patient journal entries)
+- **Sentiment Analysis Model**: DeBERTa-v3-base (for detecting emotions and sentiment)
+- **Risk Detection Model**: DeBERTa-v3-small (for identifying concerning or risky content)
 
 We will perform initial fine-tuning of these models using publicly available mental health datasets (e.g., Mental Health Reddit Dataset, GoEmotions). After initial training, we will periodically retrain these models using updated labeled data collected from simulated production usage.
 
@@ -175,7 +172,7 @@ To efficiently train these transformer models, we will use distributed training 
   - GPU Nodes
 
 ### Justification for our strategy:
-- **Transformer Models**: BART, RoBERTa, and DistilBERT are state-of-the-art NLP models widely recognized for their effectiveness in summarization, sentiment analysis, and text classification tasks, respectively. Fine-tuning these models on domain-specific mental health data ensures high accuracy and relevance for therapists.
+- **Transformer Models**: LLaMA 3.2 1B is a lightweight, decoder-only large language model (LLM) from Meta, well-suited for summarization tasks due to its strong instruction-following and generative capabilities. DeBERTa-v3-base and DeBERTa-v3-small are state-of-the-art encoder-based transformer models ideal for classification tasks like sentiment analysis and risk detection. This combination allows us to leverage both generative and discriminative strengths in a resource-efficient way.
 - **Distributed Training (Ray Train with DDP)**: Transformer models are computationally intensive and require significant GPU resources. Distributed training allows us to significantly reduce training time, enabling faster experimentation and iteration.
 - **Hyperparameter Tuning (Ray Tune)**: Transformer models' performance heavily depends on hyperparameters (learning rate, batch size, epochs, etc.). Ray Tune efficiently explores hyperparameter spaces, ensuring optimal model performance.
 - **Experiment Tracking (MLFlow)**: MLFlow provides reproducibility, experiment management, and easy comparison of model performance across experiments, essential for systematic model development.
@@ -194,7 +191,7 @@ To efficiently train these transformer models, we will use distributed training 
 
 ### Specific numbers and details:
 - **GPU Resources**: 2 GPUs, scheduled in 8-hour blocks, twice weekly.
-- **Models**: 3 transformer models (BART-base, RoBERTa-base, DistilBERT-base).
+- **Models**: 3 transformer models (LLaMA 3.2 1B, DeBERTa-v3-base, DeBERTa-v3-small).
 - **Distributed Training**: Ray Train with Distributed Data Parallel (DDP), comparing training times with 1 GPU vs. 2 GPUs.
 - **Hyperparameter Tuning**: Ray Tune with Bayesian optimization or HyperBand, exploring at least 10-20 hyperparameter configurations per model.
 - **Experiment Tracking**: MLFlow server hosted on Chameleon, logging all experiments, hyperparameters, metrics, and artifacts.
