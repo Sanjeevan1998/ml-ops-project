@@ -1,72 +1,74 @@
-## Mindful: NLP-based Journal Summarization and Sentiment Analysis
+## LegalAI: NLP-based Case Law Identification and Summarization Assistant
 
-Our machine learning system integrates directly into existing psychological counseling practices. Psychologists regularly ask patients to maintain therapeutic journals, manually reviewing these entries to detect trends, emotions, and possible risk factors. This manual process is labor-intensive, subjective, and difficult to scale. Our proposed ML assistant will automatically summarize journal entries, perform sentiment and emotional analysis, and highlight important or concerning themes. This allows therapists to quickly identify areas requiring attention, track patient progress objectively, and increase the number of patients they can effectively support.
+Our machine learning system integrates directly into existing legal research and case preparation workflows. Currently, lawyers and paralegals manually review extensive legal documents, case transcripts, and previous rulings to identify relevant precedents, arguments, and key details. This manual review process is labor-intensive and time-consuming. 
+
+Our proposed AI assistant, LegalAI, will function as a digital paralegal, enabling legal professionals to upload details and transcripts of their current cases. Leveraging advanced NLP techniques and large language models, the system automatically identifies, summarizes, and extracts essential information from relevant case laws. The tool will generate concise summaries and provides essential metadata, allowing lawyers and paralegals to rapidly review pertinent case details with direct links to access comprehensive documents online.
+
+This approach not only streamlines and accelerates legal research but significantly enhances objectivity and accuracy in identifying relevant precedents, allowing legal teams to handle a greater volume of cases effectively and strategically.
 
 
 ### Non-ML Status Quo:
 
-#### Currently, psychologists manually review patient journal entries, which is:
-* Time-consuming: Reviewing and analyzing large volumes of text takes significant time and effort.
-* Subjective: Emotional assessments are subjective and inconsistent.
-* Prone to oversight: Subtle emotional cues or trends may be missed, especially when dealing with extensive or complex journal entries.
-* Difficult to scale: As the number of patients increases, the manual process becomes unsustainable, limiting the number of patients a psychologist can effectively support.
+#### Currently, lawyers and paralegals manually review extensive legal documents and case transcripts, which is:
+* Time-consuming: Reviewing extensive legal documents, transcripts, and prior rulings demands substantial time, limiting productivity.
+* Prone to human error: Critical precedents, arguments, or subtle legal nuances can easily be overlooked due to fatigue or oversight.
+* Inefficient: Manual searching through vast legal resources is inefficient, particularly when rapid response and thorough analysis are required.
+* Difficult to scale: As the volume of cases grows, manually managing comprehensive reviews becomes unsustainable, restricting the volume of cases a legal professional can effectively handle.
 
 ### Business Metrics:
 
-#### The success of the "Mindful" system will be judged on the following business metrics:
-* Reduction in Time Spent Reviewing Journals per session: In current therapy workflows, therapists typically spend 5–10 minutes reading through raw journal entries prior to a session to prepare. With our system, ML-generated summaries reduce the required reading time to ~1 minute, allowing therapists to grasp key emotional trends and critical events more quickly. That's 4-9 minutes saved per session.
-* Improved Detection Accuracy: The system's ability to identify emotional patterns, risks, and concerning themes should outperform manual reviews.
-* Psychologist Satisfaction and Usability: Feedback from psychologists on the system's ease of use, reliability, and effectiveness will be critical.
-* Patient Outcomes: Indirectly, the system's impact on patient progress and therapeutic success can also serve as a measure of its value.
-
+#### The success of the LegalAI system will be evaluated using the following business metrics:
+* Reduction in Time Spent Reviewing Case Documents: Currently, legal professionals typically spend several hours per case manually reviewing relevant documents and case laws. With LegalAI, automated summarization and extraction reduce review time significantly—potentially from hours down to minutes—freeing up valuable time for strategic preparation.
+* Improved Identification Accuracy: The system’s capability to pinpoint relevant precedents, critical arguments, and essential metadata should consistently surpass manual review accuracy.
+* User Satisfaction and Usability: Feedback from lawyers and paralegals regarding system intuitiveness, reliability, and practical utility will serve as a critical measure of success.
+* Enhanced Case Outcomes: Indirectly, the system’s impact on improved case preparation and positive legal outcomes will serve as a core indicator of its effectiveness.
 
 ### Value Proposition
 
 #### Who is the customer?
-The primary customers for the "Mindful" system are psychologists, therapists, and mental health professionals working in private practices, counseling centers, or hospitals. For example, a specific business that could benefit from this system is BetterHelp, an online therapy platform that connects patients with licensed therapists. BetterHelp therapists often rely on written communication (e.g., patient journals or messages) to understand their clients' emotional states, making this system a perfect fit for their workflow.
+The primary customers for the LegalAI system are lawyers, paralegals, and legal research professionals working in law firms, in-house legal departments, judicial systems, and legal consulting services. For instance, law firms handling complex litigation cases with extensive documentation, such as corporate legal teams and legal research firms (e.g., LexisNexis, Westlaw), would significantly benefit from the efficiency and precision offered by the system.
 
 #### Where will it be used?
 
-The system will be used in psychological counseling practices or online therapy platforms like BetterHelp or Talkspace. It can also be integrated into hospital mental health departments or university counseling centers, where therapists manage large caseloads and need tools to streamline their workflows.
+The LegalAI assistant will be deployed in law firms, corporate legal departments, court systems, and academic institutions that engage heavily in legal research. The system can also be integrated with online legal research databases and platforms such as LexisNexis, Westlaw, or public judiciary databases, enhancing their existing search and summarization capabilities.
 
 
 #### Benefits of our system over the current system:
-* Time Savings: Automates the labor-intensive process of manually reviewing journal entries, allowing psychologists to focus on patient care.
-* Improved Accuracy: Detects subtle emotional patterns and therapeutic risks that may be missed in manual reviews, ensuring better patient outcomes.
-* Scalability: Enables psychologists to support more patients effectively by reducing the time spent on administrative tasks.
-* Objective Insights: Provides consistent and unbiased analysis, reducing subjectivity in interpreting journal entries.
-* Confidence Scores: The system provides confidence scores for each inference (e.g., "This entry is flagged with 85% confidence"), helping psychologists make informed decisions.
-
+* Time Savings: Automates the manual and labor-intensive task of reviewing legal documents, allowing legal professionals to dedicate more time to strategic case preparation.
+* Improved Accuracy: Detects critical legal precedents and arguments that might otherwise be overlooked, ensuring more thorough and precise legal analyses.
+* Scalability: Allows law firms and legal professionals to efficiently handle a larger number of cases by significantly reducing time and effort spent on administrative and review tasks.
+* Objective Insights: Delivers consistent, unbiased summaries and metadata extraction, reducing variability inherent in manual analysis.
+* Confidence Scores: Recommendation or summarized precedent is accompanied by a confidence score if its below certain threshold (e.g., "This precedent matches your case context with 72% confidence"), supporting informed decision-making.
 
 
 ### Privacy, Fairness, and Ethics Concerns
 #### Privacy Concerns:
-##### Sensitive Data: Patient journals contain highly sensitive personal information. Ensuring data privacy is paramount.
+##### Sensitive Data: Legal case documents and client communications frequently contain highly confidential and privileged information. Maintaining strict confidentiality is paramount.
 ##### Preventive Measures:
-* All data will be anonymized and encrypted during processing and storage.
-* Personally identifiable information (PII) such as names, locations, and other sensitive details will be removed during preprocessing.
+* All uploaded data and generated summaries will be securely encrypted during storage and transit.
+* Personally identifiable information (PII) and privileged legal details will be anonymized or removed through rigorous preprocessing protocols.
 
 
 #### Fairness Concerns:
-##### Bias in Sentiment and Emotion Analysis: The system should avoid biases that could arise from training data, such as cultural or linguistic differences in journal entries leading to inaccurate or unfair assessments.
+##### Bias in Legal Analysis: The system must avoid biases that could emerge from historical or jurisdictional training data, potentially leading to skewed or unfair analyses.
 ##### Preventive Measures:
-* Use diverse and representative datasets during training to minimize bias.
-* Regularly evaluate the system for fairness using fairness metrics and domain-specific tests.
-* Allow psychologists to provide feedback on flagged entries to improve the system over time.
+* Diverse and comprehensive training datasets will be employed to minimize bias, reflecting various jurisdictions and legal contexts.
+* Regular evaluation and fairness audits will be conducted, employing domain-specific fairness metrics.
+* Legal professionals will have channels for continuous feedback, ensuring iterative refinement and fairness improvement.
 
 
 #### Ethical Concerns:
-##### Incorrect Flagging: There is a risk that the system may incorrectly flag or fail to flag critical emotional patterns or risks.
+##### Incorrect or Missed Identification: There is an inherent risk of incorrectly identifying or failing to identify relevant precedents or legal arguments, potentially affecting case strategies.
 ##### Preventive Measures:
-* The system will provide confidence scores for each inference, indicating how certain it is about its predictions (e.g., "This entry is flagged with 85% confidence").
-* Psychologists will retain full control over the final interpretation of the analysis, ensuring that the system acts as a tool to assist, not replace, human judgment.
-* Regular retraining and evaluation of the models will ensure continuous improvement in accuracy and reliability.
+* The system will clearly indicate confidence scores, communicating the reliability of its recommendations explicitly to the users.
+* Lawyers and paralegals retain ultimate control over all case interpretations, ensuring the AI remains a supportive tool rather than a decision-maker.
+* Continuous retraining with user-validated data will maintain high standards of accuracy and reliability.
 
 #### Legal Use of Data:
-#### Informed Consent: Patients must provide informed consent for their journal entries to be analyzed by the system.
+#### Compliance and Consent: Ensuring all legal documents and datasets utilized for training and operation are accessed and processed in compliance with applicable laws and regulations.
 #### Preventive Measures:
-* Ensure that all data is collected and used under appropriate legal agreements and licenses.
-* Clearly communicate to patients how their data will be used and the benefits of the system.
+* All data usage will strictly adhere to legal agreements, privacy laws, and licensing constraints.
+* Transparent communication with law firms and clients about how their data will be handled, stored, and utilized by LegalAI.
 
 
 ### Contributors
@@ -97,39 +99,21 @@ link to their contributions in all repos here. -->
 Name of data/model, conditions under which it was created (ideally with links/references), 
 conditions under which it may be used. -->
 
-# Mental Health Analysis Datasets and Foundation Models
+# Legal Case Analysis Datasets and Foundation Models
 
-## Datasets for Mental Health Analysis
+## Datasets for Legal Case Analysis 
 
 | Name | How it was created | Conditions of use |  
 |------------------------------------|--------------------|-------------------|  
-| [**Sentiment Analysis Dataset**](https://www.kaggle.com/datasets/abhi8923shriv/sentiment-analysis-dataset) | Labeled dataset for sentiment analysis tasks, useful for training models on positive/negative sentiment detection | Available for research and commercial use under Kaggle's dataset terms |  
-| [**Journal Entries with Labelled Emotions**](https://www.kaggle.com/datasets/madhavmalhotra/journal-entries-with-labelled-emotions) | Labeled dataset for Journal Entries with emotions | Available for research and commercial use under Kaggle's dataset terms |  
-| [**GoEmotions**](https://www.kaggle.com/datasets/debarshichanda/goemotions) | GoEmotions is a corpus of 58k carefully curated comments extracted from Reddit, with human annotations to 27 emotion categories or Neutral. | Available for research and commercial use under Kaggle's dataset terms |
-| [**Sentiment Analysis for Mental Health**](https://www.kaggle.com/datasets/suchintikasarkar/sentiment-analysis-for-mental-health) | Focuses on sentiment classification specific to mental health discussions | Available for research purposes, subject to Kaggle's data use policies |  
-| [**Suicidal Tweet Detection Dataset**](https://www.kaggle.com/datasets/aunanya875/suicidal-tweet-detection-dataset) | Tweets labeled based on suicidal intent, useful for NLP-based risk detection | Requires ethical considerations and adherence to platform policies |  
-| [**Suicidal Mental Health Dataset**](https://www.kaggle.com/datasets/aradhakkandhari/suicidal-mental-health-dataset) | Text dataset focused on mental health and suicide risk classification | Available for academic and research purposes |  
-| [**Students Anxiety and Depression Dataset**](https://www.kaggle.com/datasets/sahasourav17/students-anxiety-and-depression-dataset) | Survey-based dataset on student mental health indicators | Available for research, subject to dataset creators’ conditions |  
-| [**Reddit Mental Health Data**](https://www.kaggle.com/datasets/neelghoshal/reddit-mental-health-data) | Collected from mental health-related subreddits, covering topics like depression and anxiety | Available for research, subject to Reddit’s data use policies |  
-| [**Mental Health Dataset (Bipolar)**](https://www.kaggle.com/datasets/michellevp/mental-health-dataset-bipolar) | Data on individuals with bipolar disorder, curated for mental health analysis | Available for research purposes, ethical considerations required |  
-| [**Human Stress Prediction**](https://www.kaggle.com/datasets/kreeshrajani/human-stress-prediction) | Dataset for stress prediction based on various mental health indicators | Available for research and analysis |  
-| [**Predicting Anxiety in Mental Health Data**](https://www.kaggle.com/datasets/michellevp/predicting-anxiety-in-mental-health-data) | Dataset designed for anxiety prediction in mental health patients | Available for research under dataset-specific terms |  
-| [**Depression Reddit Cleaned**](https://www.kaggle.com/datasets/infamouscoder/depression-reddit-cleaned) | Preprocessed dataset for studying depression discussions on Reddit | Available for research, subject to Reddit's data policies |  
-| [**Sentiment140**](https://www.kaggle.com/datasets/kazanova/sentiment140) | Large-scale sentiment analysis dataset based on Twitter data | Publicly available for sentiment analysis research |  
-| [**DAIC-WOZ (Distress Analysis Interview Corpus)**](https://dcapswoz.ict.usc.edu/) | Contains clinical interviews designed to assess mental distress using speech and text data | Requires application and approval for access, focused on ethical research |  
-| [**Yelp Review Full**](https://huggingface.co/datasets/Yelp/yelp_review_full) | Yelp reviews dataset labeled for sentiment analysis | Publicly available for NLP tasks |  
-| [**TweetEval**](https://huggingface.co/datasets/cardiffnlp/tweet_eval) | Benchmark dataset for sentiment and emotion classification on Twitter data | Available for research under dataset license |  
-| [**Sentiment Analysis for Mental Health (Hugging Face)**](https://huggingface.co/datasets/btwitssayan/sentiment-analysis-for-mental-health) | NLP dataset focused on sentiment classification for mental health discussions | Available for research under dataset-specific terms |  
-| [**Sentiment Analysis Preprocessed Dataset**](https://huggingface.co/datasets/prasadsawant7/sentiment_analysis_preprocessed_dataset) | Preprocessed dataset for sentiment analysis | Available for research and analysis |  
-| [**Social Media Sentiments Analysis Dataset**](https://www.kaggle.com/datasets/kashishparmar02/social-media-sentiments-analysis-dataset) | Analyzed social media posts for sentiment trends | Available for research and sentiment analysis tasks |  
+| [**Caselaw Access Project Dataset**](https://case.law/) | Publicly available case law data of 6.9 million unique cases from case.law | Fully available for open use, without limitations under Harvard's Library Policy |  
 
 ## Foundation Models
 
 | Name      | How it was created | Conditions of use |
 |----------|--------------------|-------------------|
-| [**LLaMA 3.2 1B**](https://huggingface.co/meta-llama/Llama-3.2-1B) |  A lightweight, decoder-only transformer model from Meta’s LLaMA 3.2 series. Optimized for instruction following, summarization, and reasoning, while being suitable for fine-tuning and inference on limited compute.         | Meta AI License - available for research and non-commercial use                   |
-| [**DeBERTa-v3-base**](https://huggingface.co/microsoft/deberta-v3-base)       | Disentangled attention mechanism with improved mask decoder; optimized for classification and sentiment analysis | MIT License – allows free use, modification, and commercial/academic distribution |
-| [**DeBERTa-v3-small**](https://huggingface.co/microsoft/deberta-v3-small)     | Smaller, efficient version of DeBERTa-v3 with reduced parameter count, ideal for low-latency risk classification | MIT License – allows free use, modification, and commercial/academic distribution |
+| [**LLaMA 3 (8B or 13B)**](https://huggingface.co/meta-llama) |  A decoder-only transformer model from Meta, optimized for instruction-following, reasoning, and summarization. Capable of handling long-context legal documents effectively when fine-tuned.         | Meta AI License - available for research and non-commercial use                   |
+| [**DeBERTa-v3-base**](https://huggingface.co/microsoft/deberta-v3-base)       | Transformer model with disentangled attention; strong for classification and information extraction in legal text. | MIT License – allows free use, modification, and commercial/academic distribution |
+| [**Legal-BERT**](https://huggingface.co/nlpaueb/legal-bert-base-uncased?utm_source=chatgpt.com)     | Fine-tuned on legal corpora (e.g., contracts, court decisions) for legal language understanding and metadata tagging. | Available for academic research; non-commercial use advised |
 
 ### Summary of infrastructure requirements
 
@@ -143,7 +127,7 @@ The table below shows an example, it is not a recommendation. -->
 | Requirement         | Quantity/Duration         | Justification  |
 |---------------------|-------------------------|---------------|
 | **m1.medium VMs**  | 3 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (GitHub Actions, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
-| **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | GPUs are needed for fine-tuning the LLaMA 3.2 1B (a lightweight decoder-only LLM) using QLoRA, and for efficient training of DeBERTa-v3-base and DeBERTa-v3-small (encoder models for classification tasks). Distributed training with Ray Train and targeted hyperparameter tuning using Ray Tune will be used to maximize GPU utilization within the limited compute window. |
+| **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | Required for fine-tuning LLaMA 3 and Legal-BERT on large case law data. Also needed for distributed training via Ray. |
 | **Persistent Storage** | 150GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and psychologist dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
@@ -157,14 +141,14 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 #### Model training and training platforms
 
 
-We will fine-tune three pre-trained transformer models to build our ML assistant for therapists:
-- **Summarization Model**: LLaMA 3.2 1B (for summarizing patient journal entries)
-- **Sentiment Analysis Model**: DeBERTa-v3-base (for detecting emotions and sentiment)
-- **Risk Detection Model**: DeBERTa-v3-small (for identifying concerning or risky content)
+We will fine-tune and integrate three pre-trained open-source transformer models to build the LegalAI system:
+- **Summarization Model**: LLaMA 3 (8B or 13B) fine-tuned to summarize long legal case documents based on user-uploaded queries or case transcripts.
+- **Relevance Classifier**: DeBERTa-v3-base, optimized to classify the legal relevance of precedent cases based on similarity and context matching.
+- **Metadata Extractor**: Legal-BERT, used to extract structured fields such as involved parties, jurisdictions, legal principles, and outcomes from unstructured text.
 
-We will perform initial fine-tuning of these models using publicly available mental health datasets (e.g., Mental Health Reddit Dataset, GoEmotions). After initial training, we will periodically retrain these models using updated labeled data collected from simulated production usage.
+We will use a subset of the case.law dataset (6.9M U.S. court decisions). Fine-tuning and evaluation will focus on legal summarization quality and accuracy of case tagging.
 
-To efficiently train these transformer models, we will use distributed training strategies (Ray Train with Distributed Data Parallel - DDP) on GPU nodes. Additionally, we will perform hyperparameter tuning using Ray Tune to optimize model performance. All experiments, hyperparameters, metrics, and model artifacts will be tracked using MLFlow, hosted on Chameleon infrastructure.
+Training and hyperparameter tuning will be done using Ray Train and Ray Tune respectively, on Chameleon Cloud GPU nodes. All training experiments, metrics, and models will be versioned and tracked using MLFlow.
 
 ### Relevant parts of the diagram:
 - **Kubernetes Cluster → Model Training & Experiment Tracking:**
@@ -173,9 +157,9 @@ To efficiently train these transformer models, we will use distributed training 
   - GPU Nodes
 
 ### Justification for our strategy:
-- **Transformer Models**: LLaMA 3.2 1B is a lightweight, decoder-only large language model (LLM) from Meta, well-suited for summarization tasks due to its strong instruction-following and generative capabilities. DeBERTa-v3-base and DeBERTa-v3-small are state-of-the-art encoder-based transformer models ideal for classification tasks like sentiment analysis and risk detection. This combination allows us to leverage both generative and discriminative strengths in a resource-efficient way.
+- **Transformer Models**: LLaMA 3 is lightweight, performant, and open-source—ideal for fine-tuning in legal summarization tasks. DeBERTa-v3-base is effective for classification tasks and balances performance with efficiency. Legal-BERT brings domain-specific awareness, making it ideal for extracting metadata and understanding legal language.
 - **Distributed Training (Ray Train with DDP)**: Transformer models are computationally intensive and require significant GPU resources. Distributed training allows us to significantly reduce training time, enabling faster experimentation and iteration.
-- **Hyperparameter Tuning (Ray Tune)**: Transformer models' performance heavily depends on hyperparameters (learning rate, batch size, epochs, etc.). Ray Tune efficiently explores hyperparameter spaces, ensuring optimal model performance.
+- **Hyperparameter Tuning (Ray Tune)**: Legal text is complex and varies across jurisdictions. Hyperparameter optimization ensures model robustness across diverse document types.
 - **Experiment Tracking (MLFlow)**: MLFlow provides reproducibility, experiment management, and easy comparison of model performance across experiments, essential for systematic model development.
 
 ### Relation back to lecture material (Units 4 & 5):
