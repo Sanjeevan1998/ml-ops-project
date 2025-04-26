@@ -6,4 +6,4 @@ application_credential_secret = "your-app-credential-secret"
 key_pair = "your-keypair"
 image_name = "CC-Ubuntu20.04"
 flavor_name = "m1.medium"
-suffix = "group36_development
+suffix = "group36_development"
