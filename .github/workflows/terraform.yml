@@ -39,11 +39,11 @@ jobs:
         run: terraform init
 
       - name: Terraform Validate
-        run: terraform validate
+        run: terraform validate -var-file=env/development.tfvars
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -out=tfplan
+        run: terraform plan -out=tfplan -var-file=env/development.tfvars
 
       - name: Upload tfplan artifact
         uses: actions/upload-artifact@v4
