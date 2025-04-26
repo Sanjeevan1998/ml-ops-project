@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    openstack = {
+      source = "terraform-provider-openstack/openstack"
+    }
+  }
+}
+
 data "openstack_networking_network_v2" "sharednet1" {
   name = "sharednet1"
 }
