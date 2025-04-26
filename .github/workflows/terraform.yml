@@ -39,8 +39,8 @@ jobs:
         run: terraform init
 
       - name: Terraform Validate
-        run: terraform validate -var-file=env/development.tfvars
-
+        run: terraform validate 
+        
       - name: Terraform Plan
         id: plan
         run: terraform plan -out=tfplan -var-file=env/development.tfvars
