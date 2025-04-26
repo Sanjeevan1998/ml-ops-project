@@ -1,0 +1,9 @@
+variable "auth_url" {}
+variable "region_name" {}
+variable "domain_name" {}
+variable "application_credential_id" {}
+variable "application_credential_secret" {}
+variable "key_pair" {}
+variable "network_name" {}
+variable "image_name" {}
+variable "flavor_name" {}
