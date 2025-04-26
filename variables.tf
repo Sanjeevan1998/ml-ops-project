@@ -8,3 +8,4 @@ variable "network_name" {}
 variable "image_name" {}
 variable "flavor_name" {}
 variable "suffix" {}
+variable "nodes" {}
