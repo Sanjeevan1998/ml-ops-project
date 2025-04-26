@@ -3,10 +3,10 @@ name: Terraform CI/CD
 on:
   pull_request:
     branches:
-      - main
+      - main-iac
   push:
     branches:
-      - main
+      - main-iac
   workflow_dispatch:
     inputs:
       action:
