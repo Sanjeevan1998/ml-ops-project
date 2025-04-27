@@ -40,12 +40,13 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate 
-        
+
+      - name: Terraform Verify
+        run: printenv
+
       - name: Terraform Plan
         id: plan
-        run: |
-          printenv | grep '^TF_VAR_' | sort
-          terraform plan -out=tfplan -var-file=env/development.tfvars
+        run: terraform plan -out=tfplan -var-file=env/development.tfvars
 
       - name: Upload tfplan artifact
         uses: actions/upload-artifact@v4
