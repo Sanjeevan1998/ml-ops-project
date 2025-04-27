@@ -33,19 +33,22 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: terraform
 
       - name: Terraform Validate
         run: terraform validate
+        working-directory: terraform
 
       - name: Terraform Plan
         id: plan
         run: terraform plan -out=tfplan -var-file=env/development.tfvars
+        working-directory: terraform
 
       - name: Upload tfplan artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: tfplan
+          path: terraform/tfplan
 
       - name: Conditional Apply or Destroy
         if: github.event_name == 'workflow_dispatch'
@@ -60,3 +63,4 @@ jobs:
             echo "Unknown action: ${{ github.event.inputs.action }}"
             exit 1
           fi
+        working-directory: terraform
