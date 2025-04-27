@@ -3,16 +3,6 @@ name: Terraform CI/CD
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Environment to run against"
-        required: true
-        default: "DEVELOPMENT"
-        type: choice
-        options:
-          - DEVELOPMENT
-          - STAGING
-          - CANARY
-          - PRODUCTION
       action:
         description: "Action to perform"
         required: true
@@ -21,8 +11,6 @@ on:
         options:
           - apply
           - destroy
-    branches:
-      - main-iac
 
 env:
   TF_VERSION: 1.6.0
@@ -31,7 +19,6 @@ jobs:
   terraform:
     name: Terraform Plan / Apply / Destroy
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }} 
     env:    
       TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
       TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
