@@ -11,6 +11,6 @@ provider "openstack" {
   auth_url    = var.auth_url
   region      = var.region_name
 
-  application_credential_id     = var.application_credential_id
-  application_credential_secret = var.application_credential_secret
+  application_credential_id     = var.CHIITACC_APPLICATION_CREDENTIAL_ID
+  application_credential_secret = var.CHIITACC_APPLICATION_CREDENTIAL_SECRET
 }

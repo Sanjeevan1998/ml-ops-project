@@ -1,7 +1,5 @@
 auth_url = "https://chi.tacc.chameleoncloud.org:5000/v3"   
 region_name = "CHI@TACC"
-application_credential_id = "your-app-credential-id"
-application_credential_secret = "your-app-credential-secret"
 key_pair = "id_rsa_chameleon"
 image_name = "CC-Ubuntu20.04"
 flavor_name = "m1.medium"
