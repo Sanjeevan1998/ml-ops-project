@@ -46,12 +46,6 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Inject Secrets for Terraform
-        run: |
-          echo "Setting up secrets for Terraform..."
-          echo "TF_VAR_application_credential_id=${{ secrets.APP_CRED_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_application_credential_secret=${{ secrets.APP_CRED_SECRET }}" >> $GITHUB_ENV
-
       - name: Terraform Init
         run: terraform init
 
@@ -62,7 +56,7 @@ jobs:
         run: |
           echo ""
           echo "✅ Showing available Terraform variables:"
-          printenv | grep '^TF_VAR_' | sort
+          printenv 
 
       - name: Terraform Plan
         id: plan
