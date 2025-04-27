@@ -1,7 +1,7 @@
 variable "auth_url" {}
 variable "region_name" {}
-variable "CHIITACC_APPLICATION_CREDENTIAL_ID" {}
-variable "CHIITACC_APPLICATION_CREDENTIAL_SECRET" {}
+variable "APPLICATION_CREDENTIAL_ID" {}
+variable "APPLICATION_CREDENTIAL_SECRET" {}
 variable "key_pair" {}
 variable "image_name" {}
 variable "flavor_name" {}
