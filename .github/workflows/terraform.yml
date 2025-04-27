@@ -36,7 +36,9 @@ jobs:
     name: Terraform Plan / Apply / Destroy
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}   # << Binds to selected GitHub Environment (critical!)
-
+    env:    
+      TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ vars.TF_VAR_APPLICATION_CREDENTIAL_ID }}
+      TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ vars.TF_VAR_APPLICATION_CREDENTIAL_SECRET }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
