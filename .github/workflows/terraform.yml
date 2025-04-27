@@ -43,7 +43,9 @@ jobs:
         
       - name: Terraform Plan
         id: plan
-        run: terraform plan -out=tfplan -var-file=env/development.tfvars
+        run: |
+          printenv | grep '^TF_VAR_' | sort
+          terraform plan -out=tfplan -var-file=env/development.tfvars
 
       - name: Upload tfplan artifact
         uses: actions/upload-artifact@v4
