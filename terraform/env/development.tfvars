@@ -1,0 +1,6 @@
+auth_url = "https://chi.tacc.chameleoncloud.org:5000/v3"   
+region_name = "CHI@TACC"
+key_pair = "id_rsa_chameleon"
+image_name = "CC-Ubuntu20.04"
+flavor_name = "m1.medium"
+suffix = "group36_development"

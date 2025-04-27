@@ -1,0 +1,66 @@
+name: Terraform CI/CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
+
+env:
+  TF_VERSION: 1.6.0
+
+jobs:
+  terraform:
+    name: Terraform Plan / Apply / Destroy
+    runs-on: ubuntu-latest
+    env:    
+      TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
+      TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan -var-file=env/development.tfvars
+        working-directory: terraform
+
+      - name: Upload tfplan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+
+      - name: Conditional Apply or Destroy
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
+            echo "Applying infrastructure..."
+            terraform apply tfplan
+          elif [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
+            echo "Destroying infrastructure..."
+            terraform destroy -auto-approve -var-file=env/development.tfvars
+          else
+            echo "Unknown action: ${{ github.event.inputs.action }}"
+            exit 1
+          fi
+        working-directory: terraform
