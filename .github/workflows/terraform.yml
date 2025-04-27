@@ -9,6 +9,16 @@ on:
       - main-iac
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Environment to run against"
+        required: true
+        default: "DEVELOPMENT"
+        type: choice
+        options:
+          - DEVELOPMENT
+          - STAGING
+          - CANARY
+          - PRODUCTION
       action:
         description: "Action to perform"
         required: true
@@ -25,6 +35,7 @@ jobs:
   terraform:
     name: Terraform Plan / Apply / Destroy
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}   # << Binds to selected GitHub Environment (critical!)
 
     steps:
       - name: Checkout code
@@ -35,14 +46,23 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      - name: Inject Secrets for Terraform
+        run: |
+          echo "Setting up secrets for Terraform..."
+          echo "TF_VAR_application_credential_id=${{ secrets.APP_CRED_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_application_credential_secret=${{ secrets.APP_CRED_SECRET }}" >> $GITHUB_ENV
+
       - name: Terraform Init
         run: terraform init
 
       - name: Terraform Validate
-        run: terraform validate 
+        run: terraform validate
 
-      - name: Terraform Verify
-        run: printenv
+      - name: Terraform Verify Variables
+        run: |
+          echo ""
+          echo "✅ Showing available Terraform variables:"
+          printenv | grep '^TF_VAR_' | sort
 
       - name: Terraform Plan
         id: plan
@@ -62,7 +82,7 @@ jobs:
             terraform apply tfplan
           elif [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
             echo "Destroying infrastructure..."
-            terraform destroy -auto-approve
+            terraform destroy -auto-approve -var-file=env/development.tfvars
           else
             echo "Unknown action: ${{ github.event.inputs.action }}"
             exit 1
