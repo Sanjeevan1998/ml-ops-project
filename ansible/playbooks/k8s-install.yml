@@ -1,0 +1,15 @@
+- name: Kubernetes Cluster Setup
+  hosts: kube_control_plane:etcd:kube_node
+  become: yes
+  roles:
+    - kubespray-defaults
+    - container-engine
+    - download
+    - etcd
+    - kubernetes/preinstall
+    - kubernetes/control-plane
+    - kubernetes/node
+    - kubernetes/client
+    - network_plugin
+    - kubernetes/addons
+  tags: k8s

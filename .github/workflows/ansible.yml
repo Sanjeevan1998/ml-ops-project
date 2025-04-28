@@ -1,0 +1,58 @@
+name: Ansible k8s Deployment
+
+on:
+  workflow_dispatch:   
+jobs:
+  deploy-k8s:
+    name: Deploy Kubernetes and Post Setup
+    runs-on: ubuntu-latest
+
+    env:
+      ANSIBLE_HOST_KEY_CHECKING: false
+      ANSIBLE_STDOUT_CALLBACK: yaml
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Python & Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install -r ansible/requirements.txt
+          pip3 install python-openstackclient
+
+      - name: Setup SSH Key
+        run: |
+          echo "Setting OpenStack CLI environment variables"
+          export OS_AUTH_URL="https://kvm.tacc.chameleoncloud.org:5000"
+          export OS_PROJECT_ID="89f528973fea4b3a981f9b2344e522de"
+          export OS_PROJECT_NAME="CHI-251409"
+          export OS_AUTH_TYPE="v3applicationcredential"
+          export OS_APPLICATION_CREDENTIAL_ID=${{ secrets.APPLICATION_CREDENTIAL_ID }}
+          export OS_APPLICATION_CREDENTIAL_SECRET=${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+          export OS_REGION_NAME="KVM@TACC"
+
+          FLOATING_IP=$(openstack server show bastion-vm -f json | jq -r '.addresses' | grep -oP '(\d{1,3}\.){3}\d{1,3}$')
+          sed -i "s/cc@A.B.C.D/cc@${FLOATING_IP}/g" ansible/ansible.cfg
+
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $FLOATING_IP >> ~/.ssh/known_hosts
+
+      - name: Deploy Kubernetes Cluster + Post Setup
+        run: |
+          cd ansible
+          ansible-playbook site.yml
+
+      - name: Fetch kubeconfig from node1
+        run: |
+          mkdir -p kubeconfig
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa cc@$FLOATING_IP "sudo cat /etc/kubernetes/admin.conf" > kubeconfig/admin.conf
+
+      - name: Upload kubeconfig as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: kubeconfig/admin.conf
