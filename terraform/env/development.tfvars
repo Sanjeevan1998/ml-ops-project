@@ -1,4 +1,4 @@
-auth_url = "https://kvm.tacc.chameleoncloud.org:5000/v3"
+auth_url = "https://kvm.tacc.chameleoncloud.org:5000"
 region_name = "KVM@TACC"
 key_pair = "id_rsa_chameleon"
 image_name = "CC-Ubuntu20.04"

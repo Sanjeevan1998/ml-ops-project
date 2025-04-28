@@ -13,7 +13,7 @@ on:
           - destroy
 
 env:
-  TF_VERSION: 1.6.0
+  TF_VERSION: 1.2.9
 
 jobs:
   plan:
@@ -23,6 +23,7 @@ jobs:
     env:
       TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
       TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+      ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
     steps:
       - name: Checkout code
@@ -33,21 +34,8 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Download previous terraform.tfstate if exists
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/
-        continue-on-error: true
-
       - name: Terraform Init
-        run: |
-          terraform init \
-          -backend-config="auth_url=https://kvm.tacc.chameleoncloud.org:5000/v3" \
-          -backend-config="user_name=${{ secrets.APPLICATION_CREDENTIAL_ID }}" \
-          -backend-config="password=${{ secrets.APPLICATION_CREDENTIAL_SECRET }}" \
-          -backend-config="tenant_name=89f528973fea4b3a981f9b2344e522de" \
-          -backend-config="region_name=KVM@TACC"
+        run: terraform init 
         working-directory: terraform
 
       - name: Terraform Validate
@@ -63,12 +51,6 @@ jobs:
         with:
           name: tfplan
           path: terraform/tfplan
-
-      - name: Upload updated Terraform State
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/terraform.tfstate
 
   approval:
     name: Manual Approval
@@ -90,6 +72,7 @@ jobs:
     env:
       TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
       TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+      ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
     steps:
       - name: Checkout code
@@ -106,13 +89,6 @@ jobs:
           name: tfplan
           path: terraform/
 
-      - name: Download Terraform State
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/
-        continue-on-error: true
-
       - name: Terraform Init
         run: terraform init
         working-directory: terraform
@@ -120,12 +96,6 @@ jobs:
       - name: Terraform Apply
         run: terraform apply tfplan
         working-directory: terraform
-
-      - name: Upload updated Terraform State
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/terraform.tfstate
 
   destroy:
     name: Terraform Destroy
@@ -136,6 +106,7 @@ jobs:
     env:
       TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
       TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+      ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
     steps:
       - name: Checkout code
@@ -146,13 +117,6 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Download Terraform State
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/
-        continue-on-error: true
-
       - name: Terraform Init
         run: terraform init
         working-directory: terraform
@@ -160,9 +124,3 @@ jobs:
       - name: Terraform Destroy
         run: terraform destroy -auto-approve -var-file=env/development.tfvars
         working-directory: terraform
-
-      - name: Upload updated Terraform State
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/terraform.tfstate
