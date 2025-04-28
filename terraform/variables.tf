@@ -7,10 +7,6 @@ variable "image_name" {}
 variable "flavor_name" {}
 variable "suffix" {}
 
-variable "backend_auth_url" {}
-variable "backend_region" {}
-variable "backend_tenant_id" {}
-
 variable "nodes" {
   type = map(string)
   default = {

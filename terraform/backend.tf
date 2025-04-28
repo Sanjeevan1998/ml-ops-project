@@ -1,11 +1,8 @@
 terraform {
-  backend "swift" {
-    auth_url    = var.backend_auth_url          
-    user_name   = var.CHITACC_APPLICATION_CREDENTIAL_ID     
-    password    = var.CHITACC_APPLICATION_CREDENTIAL_SECRET 
-    tenant_name = var.backend_tenant_id          
-    region_name = var.backend_region             
-    container   = "terraform-tfstate-group36"
-    object_name = "terraform.tfstate"
+  backend "azurerm" {
+    resource_group_name   = "primary-resource"
+    storage_account_name  = "tfbackendmlopsgroup36"
+    container_name        = "terraform-state"
+    key                   = "terraform.tfstate" 
   }
 }
