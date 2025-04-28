@@ -1,4 +1,4 @@
-name: Terraform Storage Bootstrap
+name: Terraform  Bootstrap
 
 on:
   workflow_dispatch:   
