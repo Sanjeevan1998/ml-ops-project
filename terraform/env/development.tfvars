@@ -1,7 +1,11 @@
-auth_url = "https://kvm.tacc.chameleoncloud.org:5000/v3"
+auth_url = "https://kvm.tacc.chameleoncloud.org:5000"
 region_name = "KVM@TACC"
 key_pair = "id_rsa_chameleon"
 image_name = "CC-Ubuntu20.04"
 flavor_name = "m1.medium"
 suffix = "group36_development"
 tenant_name = "89f528973fea4b3a981f9b2344e522de"
+
+backend_region = "CHI@TACC"
+backend_tenant_id = "89f528973fea4b3a981f9b2344e522de"
+backend_auth_url = "https://chi.tacc.chameleoncloud.org:5000"
