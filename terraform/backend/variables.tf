@@ -1,4 +1,4 @@
-variable "auth_url" {}
-variable "region_name" {}
+variable "AUTH_URL" {}
+variable "REGION_NAME" {}
 variable "APPLICATION_CREDENTIAL_ID" {}
 variable "APPLICATION_CREDENTIAL_SECRET" {}
