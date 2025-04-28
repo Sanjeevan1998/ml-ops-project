@@ -16,12 +16,14 @@ env:
   TF_VERSION: 1.6.0
 
 jobs:
-  terraform:
-    name: Terraform Plan / Apply / Destroy
+  plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
-    env:    
+    environment: DEVELOPMENT
+    env:
       TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
       TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,6 +32,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download previous terraform.tfstate if exists
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
 
       - name: Terraform Init
         run: terraform init
@@ -40,7 +49,6 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Plan
-        id: plan
         run: terraform plan -out=tfplan -var-file=env/development.tfvars
         working-directory: terraform
 
@@ -50,17 +58,105 @@ jobs:
           name: tfplan
           path: terraform/tfplan
 
-      - name: Conditional Apply or Destroy
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
-            echo "Applying infrastructure..."
-            terraform apply tfplan
-          elif [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
-            echo "Destroying infrastructure..."
-            terraform destroy -auto-approve -var-file=env/development.tfvars
-          else
-            echo "Unknown action: ${{ github.event.inputs.action }}"
-            exit 1
-          fi
+      - name: Upload updated Terraform State
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/terraform.tfstate
+
+  approval:
+    name: Manual Approval
+    runs-on: ubuntu-latest
+    needs: plan
+    environment:
+      name: APPROVAL
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Wait for manual approval
+        run: echo "Waiting for manual approval..."
+
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: approval
+    if: ${{ github.event.inputs.action == 'apply' }}
+    environment: DEVELOPMENT
+    env:
+      TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
+      TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download tfplan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
+
+      - name: Terraform Init
+        run: terraform init
         working-directory: terraform
+
+      - name: Terraform Apply
+        run: terraform apply tfplan
+        working-directory: terraform
+
+      - name: Upload updated Terraform State
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/terraform.tfstate
+
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    needs: approval
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    environment: DEVELOPMENT
+    env:
+      TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
+      TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/
+        continue-on-error: true
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -var-file=env/development.tfvars
+        working-directory: terraform
+
+      - name: Upload updated Terraform State
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/terraform.tfstate
