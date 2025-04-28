@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "openstack" {
-  auth_url                     = var.auth_url
+  auth_url                     = var.AUTH_URL
 
   application_credential_id     = var.APPLICATION_CREDENTIAL_ID
   application_credential_secret = var.APPLICATION_CREDENTIAL_SECRET
