@@ -41,7 +41,13 @@ jobs:
         continue-on-error: true
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init \
+          -backend-config="auth_url=https://kvm.tacc.chameleoncloud.org:5000/v3" \
+          -backend-config="user_name=${{ secrets.APPLICATION_CREDENTIAL_ID }}" \
+          -backend-config="password=${{ secrets.APPLICATION_CREDENTIAL_SECRET }}" \
+          -backend-config="tenant_name=89f528973fea4b3a981f9b2344e522de" \
+          -backend-config="region_name=KVM@TACC"
         working-directory: terraform
 
       - name: Terraform Validate

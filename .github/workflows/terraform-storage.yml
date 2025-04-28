@@ -1,0 +1,30 @@
+name: Terraform Storage Bootstrap
+
+on:
+  workflow_dispatch:   
+env:
+  TF_VERSION: 1.6.0
+
+jobs:
+  backend-storage:
+    name: Create Backend Storage (Swift)
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_APPLICATION_CREDENTIAL_ID: ${{ secrets.APPLICATION_CREDENTIAL_ID }}
+      TF_VAR_APPLICATION_CREDENTIAL_SECRET: ${{ secrets.APPLICATION_CREDENTIAL_SECRET }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Initialize Storage (Swift Container)
+        run: |
+          terraform init
+          terraform plan -out=tfplan -var-file=../env/development.tfvars
+          terraform apply tfplan
+        working-directory: terraform/backend
