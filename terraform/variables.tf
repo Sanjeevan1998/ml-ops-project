@@ -6,6 +6,7 @@ variable "key_pair" {}
 variable "image_name" {}
 variable "flavor_name" {}
 variable "suffix" {}
+varaible "tenent_name" {}
 
 variable "nodes" {
   type = map(string)
