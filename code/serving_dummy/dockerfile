@@ -26,6 +26,7 @@
     # Copy application code and necessary artifacts into the image
     # Option 1: Copy pre-built index/map/metadata (if generated outside)
     COPY src/api /app/src/api
+    COPY src/api/templates /app/src/api/templates
     # COPY index /app/index # Not recommended if large, use volumes instead
     # COPY metadata /app/metadata # Not recommended if large, use volumes instead
     # Make sure the API code loads from paths defined by env vars or relative paths

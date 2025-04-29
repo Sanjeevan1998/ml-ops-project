@@ -1,15 +1,16 @@
-# src/api/main.py (Updated for Browser GET requests)
-from fastapi import FastAPI, HTTPException, Body, Query # Import Query for GET params
+# src/api/main.py (Updated with Jinja2 Templates for UI)
+from fastapi import FastAPI, HTTPException, Body, Query, Request # Request needed for templates
+from fastapi.responses import HTMLResponse # To render HTML
+from fastapi.templating import Jinja2Templates # For Jinja2
 import faiss
 import pickle
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import os
 import logging
-from typing import List, Dict, Any # For type hinting
+from typing import List, Dict, Any
 
 # --- Configuration ---
-# Uses ENV variables set in Dockerfile (dummy paths)
 INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/dummy_index.faiss")
 MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/index/dummy_map.pkl")
 METADATA_PATH = os.environ.get("METADATA_PATH", "/app/metadata/dummy_metadata.pkl")
@@ -19,8 +20,12 @@ MODEL_DEVICE = os.environ.get("MODEL_DEVICE", "cpu")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Setup Templates ---
+# Assumes a 'templates' directory exists within the same directory as main.py
+# Adjust path if your structure is different inside the container
+templates = Jinja2Templates(directory="src/api/templates")
+
 # --- Load Models and Data (at startup) ---
-# (Keep the loading logic the same as before - wrapped in try/except)
 try:
     logger.info(f"Loading embedding model: {MODEL_NAME} on device: {MODEL_DEVICE}")
     embedder = SentenceTransformer(MODEL_NAME, device=MODEL_DEVICE)
@@ -42,6 +47,7 @@ try:
 
 except Exception as e:
     logger.error(f"FATAL: Error loading models/data: {e}", exc_info=True)
+    # In a real app, might want more graceful handling than immediate crash
     raise RuntimeError(f"Failed to initialize application: {e}")
 
 app = FastAPI()
@@ -77,50 +83,60 @@ def perform_search(query: str, top_k: int) -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"Error during search logic execution: {e}", exc_info=True)
-        # Re-raise or handle appropriately; here we let the endpoint handle HTTP exception
         raise e
 
 
 # --- API Endpoints ---
 
-# Original POST endpoint (for curl or programmatic access)
+# Root endpoint to serve the search form
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    """Serves the main search form."""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# Endpoint to handle form submission (GET) and display results
+@app.get("/search_browser", response_class=HTMLResponse)
+async def search_documents_get_html(request: Request, # Need request for template rendering
+                               query: str = Query(..., description="The search query text"),
+                               top_k: int = Query(default=3, description="Number of results to return")):
+    """
+    Handles search form submission, performs search, and renders results HTML.
+    """
+    if not query:
+         # Redirect back to form or show error message? Let's show results page with error.
+         return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": "Query cannot be empty."})
+    try:
+        search_results = perform_search(query=query, top_k=top_k)
+        # Pass request and results to the template
+        return templates.TemplateResponse("results.html", {"request": request, "results": search_results})
+    except Exception as e:
+        logger.error(f"Error in GET /search_browser endpoint: {e}", exc_info=True)
+        # Render the results template with an error message
+        return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": "Internal server error during search."})
+
+
+# Original POST endpoint (still available for programmatic access)
 @app.post("/search")
 async def search_documents_post(query: str = Body(...), top_k: int = Body(default=5)):
     try:
         results = perform_search(query=query, top_k=top_k)
         return {"results": results}
     except Exception as e:
-        # Catch exceptions from perform_search or other issues
         logger.error(f"Error in POST /search endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during search.")
 
 
-# NEW GET endpoint (for browser access)
-@app.get("/search_browser")
-async def search_documents_get(query: str = Query(..., description="The search query text"),
-                               top_k: int = Query(default=3, description="Number of results to return")):
-    """
-    Search endpoint accessible via browser using query parameters.
-    Example: /search_browser?query=contract+law&top_k=5
-    """
-    if not query:
-        raise HTTPException(status_code=400, detail="Query parameter cannot be empty.")
-    try:
-        results = perform_search(query=query, top_k=top_k)
-        return {"results": results}
-    except Exception as e:
-        # Catch exceptions from perform_search or other issues
-        logger.error(f"Error in GET /search_browser endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during search.")
-
-
-# Health check endpoint (remains the same)
+# Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "model_name": MODEL_NAME, "faiss_items": index.ntotal}
 
-# --- Prometheus Instrumentation (Keep if needed later, requires library) ---
+# --- Prometheus Instrumentation ---
+# Can be uncommented later if needed
 # from prometheus_fastapi_instrumentator import Instrumentator
-# Instrumentator().instrument(app).expose(app)
-# logger.info("Prometheus instrumentator attached.")
-# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# try:
+#     Instrumentator().instrument(app).expose(app)
+#     logger.info("Prometheus instrumentator attached.")
+# except NameError:
+#      logger.info("Prometheus instrumentator not available/installed.")
+# --- --- --- --- --- --- --- ---
