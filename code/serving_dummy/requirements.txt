@@ -5,3 +5,4 @@ faiss-cpu
 numpy
 pydantic<2.0 # Pinning below 2.0 as older ST often needed this
 torch
+prometheus-fastapi-instrumentator
