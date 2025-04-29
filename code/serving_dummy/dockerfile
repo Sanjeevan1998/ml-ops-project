@@ -1,0 +1,61 @@
+# In ~/legal_search_project/Dockerfile
+# Choose appropriate base image - Python + CUDA if using GPU
+# Make sure CUDA version matches faiss-gpu requirements if used
+# Example for GPU: FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+# Example for CPU:
+    FROM python:3.10-slim
+
+    # Set working directory
+    WORKDIR /app
+    
+    # Install system dependencies (if needed)
+    # RUN apt-get update && apt-get install -y --no-install-recommends \
+    #     build-essential \
+    #     # tesseract-ocr \ # Uncomment if using pytesseract
+    #  && rm -rf /var/lib/apt/lists/*
+    
+    # Copy requirements file
+    COPY requirements.txt requirements.txt
+    
+    # Install Python dependencies
+    # Consider using --no-cache-dir to reduce image size
+    RUN pip install --upgrade pip
+    # If using faiss-gpu, installation might be more complex (e.g., from specific wheel or conda)
+    RUN pip install -r requirements.txt
+    
+    # Copy application code and necessary artifacts into the image
+    # Option 1: Copy pre-built index/map/metadata (if generated outside)
+    COPY src/api /app/src/api
+    COPY src/api/templates /app/src/api/templates
+    # COPY index /app/index # Not recommended if large, use volumes instead
+    # COPY metadata /app/metadata # Not recommended if large, use volumes instead
+    # Make sure the API code loads from paths defined by env vars or relative paths
+    
+    # Option 2: Build artifacts inside (only if small/fast enough for build stage)
+    # COPY src /app/src
+    # COPY data /app/data # If data needed for build
+    # RUN python src/processing/build_artifacts.py # Script to build index etc.
+    
+    # Copy entrypoint script if you have one (optional)
+    # COPY entrypoint.sh /app/entrypoint.sh
+    # RUN chmod +x /app/entrypoint.sh
+    
+    # Expose the port the app runs on
+    EXPOSE 8000
+    
+    # Set environment variables (defaults, can be overridden in docker-compose.yaml)
+    ENV FAISS_INDEX_PATH="/app/index/dummy_index.faiss"
+    ENV FAISS_MAP_PATH="/app/index/dummy_map.pkl"
+    ENV METADATA_PATH="/app/metadata/dummy_metadata.pkl"
+    ENV EMBEDDING_MODEL="all-MiniLM-L6-v2"
+    ENV MODEL_DEVICE="cpu"
+    # Set PYTHONPATH if needed
+    ENV PYTHONPATH="/app"
+    
+    # Command to run the application using Uvicorn
+    # Use --host 0.0.0.0 to be accessible outside the container
+    # Use --reload for development (remove for production)
+    CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    # For multiple workers (production):
+    # CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+    # ENTRYPOINT ["/app/entrypoint.sh"] # If using entrypoint script

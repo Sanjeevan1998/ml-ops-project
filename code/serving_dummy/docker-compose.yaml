@@ -1,0 +1,68 @@
+# docker-compose.yaml (Updated with Prometheus & Grafana)
+version: '3.8' # Still okay to leave, despite warning
+
+services:
+  # Renamed service back to 'legal-search-api' for consistency with Prometheus config
+  legal-search-api:
+    build: .
+    container_name: legal-search-api-dummy
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./index:/app/index:ro
+      - ./metadata:/app/metadata:ro
+      - ./hf_cache:/root/.cache/huggingface
+    environment:
+      MODEL_DEVICE: "cpu"
+      # ENV vars for paths and model are now set in Dockerfile
+    networks:
+      - monitoring_net # Use the new network name
+
+  prometheus:
+    image: prom/prometheus:v2.45.0 # Use a specific stable version
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090" # Expose Prometheus port
+    volumes:
+      # Mount the config file we created into the container
+      - ./monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      # Mount a named volume for persistent Prometheus data
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle' # Allows reload via API if needed
+    networks:
+      - monitoring_net # Must be on the same network
+
+  grafana:
+    image: grafana/grafana-oss:10.2.2 # Use a specific stable OSS version
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Expose Grafana port
+    volumes:
+      # Mount a named volume for persistent Grafana data/dashboards
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin # Default user/pass is admin/admin
+      GF_SECURITY_ADMIN_PASSWORD: admin # CHANGE THIS on first login!
+      GF_USERS_ALLOW_SIGN_UP: 'false' # Disable public sign-up
+      # GF_INSTALL_PLUGINS: some-plugin,another-plugin # Optional: install plugins
+    networks:
+      - monitoring_net # Must be on the same network
+    depends_on: # Start Grafana after Prometheus (optional but good practice)
+      - prometheus
+
+networks:
+  monitoring_net: # Define the network
+    driver: bridge
+
+volumes: # Define the named volumes
+  prometheus_data:
+  grafana_data:
+  hf_cache:

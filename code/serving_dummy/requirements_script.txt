@@ -1,0 +1,5 @@
+# Dependencies for running the artifact generation script directly
+sentence-transformers
+faiss-cpu
+numpy
+torch
