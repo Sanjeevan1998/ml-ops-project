@@ -1,0 +1,31 @@
+Python cache
+pycache/
+*.pyc
+*.pyo
+*~
+
+Environment files
+.env
+*.env
+
+OS cache files
+.DS_Store
+Thumbs.db
+
+Data / Artifacts (large ones not tracked)
+index/* # Keep dummy index for now maybe? Decide later.
+metadata/* # Keep dummy metadata for now maybe? Decide later.
+models/
+hf_cache/
+prometheus_data/
+grafana_data/
+minio_data/
+
+IDE files
+.idea/
+.vscode/
+
+Python Virtual Environment
+venv/
+env/
+.venv/
