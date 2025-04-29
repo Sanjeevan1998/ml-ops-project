@@ -1,24 +1,26 @@
-# Example structure for src/api/main.py
-from fastapi import FastAPI, HTTPException, Body, Request
+# src/api/main.py (Updated for Browser GET requests)
+from fastapi import FastAPI, HTTPException, Body, Query # Import Query for GET params
 import faiss
 import pickle
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import os
 import logging
-from prometheus_fastapi_instrumentator import Instrumentator # For Unit 6/7
+from typing import List, Dict, Any # For type hinting
 
 # --- Configuration ---
-INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/legal_index.faiss")
-MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/index/faiss_map.pkl")
-METADATA_PATH = os.environ.get("METADATA_PATH", "/app/metadata/metadata_store.pkl")
-MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "nlpaueb/legal-bert-base-uncased") # Example
-MODEL_DEVICE = os.environ.get("MODEL_DEVICE", "cpu") # Set to 'cuda' for GPU
+# Uses ENV variables set in Dockerfile (dummy paths)
+INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/dummy_index.faiss")
+MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/index/dummy_map.pkl")
+METADATA_PATH = os.environ.get("METADATA_PATH", "/app/metadata/dummy_metadata.pkl")
+MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+MODEL_DEVICE = os.environ.get("MODEL_DEVICE", "cpu")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Load Models and Data (at startup) ---
+# (Keep the loading logic the same as before - wrapped in try/except)
 try:
     logger.info(f"Loading embedding model: {MODEL_NAME} on device: {MODEL_DEVICE}")
     embedder = SentenceTransformer(MODEL_NAME, device=MODEL_DEVICE)
@@ -35,100 +37,90 @@ try:
 
     logger.info(f"Loading metadata store from: {METADATA_PATH}")
     with open(METADATA_PATH, "rb") as f:
-        metadata_store = pickle.load(f) # Assuming dict: filename -> metadata
+        metadata_store = pickle.load(f)
     logger.info("Metadata store loaded.")
 
 except Exception as e:
     logger.error(f"FATAL: Error loading models/data: {e}", exc_info=True)
-    # Depending on setup, you might want the app to exit or enter a degraded state
     raise RuntimeError(f"Failed to initialize application: {e}")
 
 app = FastAPI()
 
-# --- Unit 6/7: Instrument for Prometheus ---
-Instrumentator().instrument(app).expose(app)
-logger.info("Prometheus instrumentator attached.")
-
-# --- API Endpoints ---
-@app.post("/search")
-async def search_documents(query: str = Body(...), top_k: int = Body(default=5)):
+# --- Helper Function for Core Search Logic ---
+def perform_search(query: str, top_k: int) -> List[Dict[str, Any]]:
+    """Encapsulates the core search logic."""
     try:
-        logger.info(f"Received search request: top_k={top_k}, query='{query[:100]}...'") # Log truncated query
+        logger.info(f"Performing search: top_k={top_k}, query='{query[:100]}...'")
 
-        # 1. Embed Query
         query_vector = embedder.encode([query], convert_to_numpy=True, device=MODEL_DEVICE)
+        distances, indices = index.search(query_vector.astype(np.float32), min(top_k, index.ntotal))
 
-        # 2. Search FAISS
-        # FAISS expects float32. Ensure query_vector matches index dtype if needed.
-        distances, indices = index.search(query_vector.astype(np.float32), top_k)
-
-        # 3. Retrieve & Enrich Results
         results = []
-        processed_filenames = set() # To deduplicate results by source document
-
         for i, idx in enumerate(indices[0]):
-            if idx == -1: # Should not happen with HNSW unless k > ntotal, but good check
-                continue
-
-            # Ensure index is within bounds of the map
-            if idx >= len(faiss_id_to_info):
-                logger.warning(f"FAISS index {idx} out of bounds for map length {len(faiss_id_to_info)}")
-                continue
+            if idx == -1 or idx >= len(faiss_id_to_info): continue
 
             chunk_info = faiss_id_to_info[idx]
             source_filename = chunk_info.get('source_filename')
-            chunk_id = chunk_info.get('chunk_id') # You'll need the chunk text too eventually
-
-            if not source_filename:
-                 logger.warning(f"Missing source_filename for FAISS index {idx}")
-                 continue
-
-            # Optional: Deduplicate based on source document
-            # if source_filename in processed_filenames:
-            #    continue
-            # processed_filenames.add(source_filename)
+            if not source_filename: continue
 
             doc_metadata = metadata_store.get(source_filename, {})
             distance = distances[0][i]
-            # You might need to retrieve the actual chunk text here if needed in response
 
             results.append({
                 "case_name": doc_metadata.get("case_name", "N/A"),
                 "citation": doc_metadata.get("citation", "N/A"),
-                "decision_date": doc_metadata.get("decision_date", "N/A"),
-                "outcome_summary": doc_metadata.get("outcome_summary", "N/A"),
                 "source_pdf_filename": source_filename,
-                "chunk_id": chunk_id,
-                # "relevant_chunk_text": "...", # Retrieve this if needed
-                "distance": float(distance), # Lower is better for L2/IP
-                # "similarity_score": calculate_similarity(distance), # Implement if needed
+                "distance": float(distance),
             })
-
-        logger.info(f"Returning {len(results)} results for query '{query[:100]}...'")
-        return {"results": results}
+        logger.info(f"Search returned {len(results)} results for query '{query[:100]}...'")
+        return results
 
     except Exception as e:
-        logger.error(f"Error processing search request: {e}", exc_info=True)
+        logger.error(f"Error during search logic execution: {e}", exc_info=True)
+        # Re-raise or handle appropriately; here we let the endpoint handle HTTP exception
+        raise e
+
+
+# --- API Endpoints ---
+
+# Original POST endpoint (for curl or programmatic access)
+@app.post("/search")
+async def search_documents_post(query: str = Body(...), top_k: int = Body(default=5)):
+    try:
+        results = perform_search(query=query, top_k=top_k)
+        return {"results": results}
+    except Exception as e:
+        # Catch exceptions from perform_search or other issues
+        logger.error(f"Error in POST /search endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during search.")
 
 
-@app.post("/feedback")
-async def log_feedback(request: Request, feedback_data: dict = Body(...)):
-    # Example feedback_data: {"query": "...", "source_pdf_filename": "...", "chunk_id": "...", "is_relevant": true/false}
-    client_host = request.client.host
-    logger.info(f"Received feedback from {client_host}: {feedback_data}")
-    # --- Unit 7: Store Feedback ---
-    # Implement logic to save this feedback persistently (e.g., write to a log file,
-    # send to a MinIO bucket, insert into a database). This is crucial for Phase 3/4.
-    # Example: append to a JSONL file
-    # with open("/app/feedback_log/feedback.jsonl", "a") as f:
-    #     json.dump({"timestamp": datetime.utcnow().isoformat(), "client": client_host, **feedback_data}, f)
-    #     f.write("\n")
-    return {"status": "feedback received"}
+# NEW GET endpoint (for browser access)
+@app.get("/search_browser")
+async def search_documents_get(query: str = Query(..., description="The search query text"),
+                               top_k: int = Query(default=3, description="Number of results to return")):
+    """
+    Search endpoint accessible via browser using query parameters.
+    Example: /search_browser?query=contract+law&top_k=5
+    """
+    if not query:
+        raise HTTPException(status_code=400, detail="Query parameter cannot be empty.")
+    try:
+        results = perform_search(query=query, top_k=top_k)
+        return {"results": results}
+    except Exception as e:
+        # Catch exceptions from perform_search or other issues
+        logger.error(f"Error in GET /search_browser endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during search.")
 
+
+# Health check endpoint (remains the same)
 @app.get("/health")
 async def health_check():
-    # Basic health check
-    return {"status": "ok", "faiss_items": index.ntotal}
+    return {"status": "ok", "model_name": MODEL_NAME, "faiss_items": index.ntotal}
 
-# Add other endpoints as needed (e.g., for metadata lookup)
+# --- Prometheus Instrumentation (Keep if needed later, requires library) ---
+# from prometheus_fastapi_instrumentator import Instrumentator
+# Instrumentator().instrument(app).expose(app)
+# logger.info("Prometheus instrumentator attached.")
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
