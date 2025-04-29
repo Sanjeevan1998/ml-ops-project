@@ -1,0 +1,16 @@
+# monitoring/prometheus.yaml
+global:
+  scrape_interval: 15s # How often to scrape targets
+
+scrape_configs:
+  - job_name: 'prometheus' # Monitor Prometheus itself
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'legal-search-api' # A name for your API service job
+    # Metrics endpoint exposed by prometheus-fastapi-instrumentator
+    # and prometheus-client
+    metrics_path: /metrics
+    static_configs:
+      # Use the SERVICE name from docker-compose.yaml and the port INSIDE the container
+      - targets: ['legal-search-api:8000']

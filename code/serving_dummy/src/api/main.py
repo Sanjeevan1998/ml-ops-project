@@ -1,7 +1,7 @@
-# src/api/main.py (Updated with Jinja2 Templates for UI)
-from fastapi import FastAPI, HTTPException, Body, Query, Request # Request needed for templates
-from fastapi.responses import HTMLResponse # To render HTML
-from fastapi.templating import Jinja2Templates # For Jinja2
+# src/api/main.py (Updated for Prometheus Monitoring)
+from fastapi import FastAPI, HTTPException, Body, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 import faiss
 import pickle
 import numpy as np
@@ -9,6 +9,17 @@ from sentence_transformers import SentenceTransformer
 import os
 import logging
 from typing import List, Dict, Any
+
+# --- Prometheus Client Setup ---
+from prometheus_client import Histogram # Import Histogram
+# Define a Histogram metric for the closest distance
+# Buckets cover distances from 0 to 1 (common for normalized embeddings) + infinity
+SEARCH_CLOSEST_DISTANCE = Histogram(
+    "search_closest_distance",
+    "Distance of the closest search result",
+    buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, float("inf")]
+)
+# --- --- --- --- --- --- --- ---
 
 # --- Configuration ---
 INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/dummy_index.faiss")
@@ -21,8 +32,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Setup Templates ---
-# Assumes a 'templates' directory exists within the same directory as main.py
-# Adjust path if your structure is different inside the container
 templates = Jinja2Templates(directory="src/api/templates")
 
 # --- Load Models and Data (at startup) ---
@@ -47,7 +56,6 @@ try:
 
 except Exception as e:
     logger.error(f"FATAL: Error loading models/data: {e}", exc_info=True)
-    # In a real app, might want more graceful handling than immediate crash
     raise RuntimeError(f"Failed to initialize application: {e}")
 
 app = FastAPI()
@@ -57,86 +65,78 @@ def perform_search(query: str, top_k: int) -> List[Dict[str, Any]]:
     """Encapsulates the core search logic."""
     try:
         logger.info(f"Performing search: top_k={top_k}, query='{query[:100]}...'")
-
         query_vector = embedder.encode([query], convert_to_numpy=True, device=MODEL_DEVICE)
         distances, indices = index.search(query_vector.astype(np.float32), min(top_k, index.ntotal))
 
         results = []
         for i, idx in enumerate(indices[0]):
             if idx == -1 or idx >= len(faiss_id_to_info): continue
-
             chunk_info = faiss_id_to_info[idx]
             source_filename = chunk_info.get('source_filename')
             if not source_filename: continue
-
             doc_metadata = metadata_store.get(source_filename, {})
             distance = distances[0][i]
-
             results.append({
                 "case_name": doc_metadata.get("case_name", "N/A"),
                 "citation": doc_metadata.get("citation", "N/A"),
                 "source_pdf_filename": source_filename,
                 "distance": float(distance),
             })
+
+        # --- Observe the closest distance metric ---
+        if results: # Only observe if we found at least one result
+            closest_distance = results[0]['distance']
+            SEARCH_CLOSEST_DISTANCE.observe(closest_distance)
+            logger.info(f"Observed closest distance: {closest_distance:.4f}")
+        # --- --- --- --- --- --- --- --- --- --- ---
+
         logger.info(f"Search returned {len(results)} results for query '{query[:100]}...'")
         return results
-
     except Exception as e:
         logger.error(f"Error during search logic execution: {e}", exc_info=True)
         raise e
 
 
 # --- API Endpoints ---
-
-# Root endpoint to serve the search form
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """Serves the main search form."""
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Endpoint to handle form submission (GET) and display results
 @app.get("/search_browser", response_class=HTMLResponse)
-async def search_documents_get_html(request: Request, # Need request for template rendering
+async def search_documents_get_html(request: Request,
                                query: str = Query(..., description="The search query text"),
                                top_k: int = Query(default=3, description="Number of results to return")):
-    """
-    Handles search form submission, performs search, and renders results HTML.
-    """
     if not query:
-         # Redirect back to form or show error message? Let's show results page with error.
          return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": "Query cannot be empty."})
     try:
         search_results = perform_search(query=query, top_k=top_k)
-        # Pass request and results to the template
         return templates.TemplateResponse("results.html", {"request": request, "results": search_results})
     except Exception as e:
         logger.error(f"Error in GET /search_browser endpoint: {e}", exc_info=True)
-        # Render the results template with an error message
         return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": "Internal server error during search."})
 
-
-# Original POST endpoint (still available for programmatic access)
 @app.post("/search")
 async def search_documents_post(query: str = Body(...), top_k: int = Body(default=5)):
     try:
         results = perform_search(query=query, top_k=top_k)
+        # NOTE: We observe the distance metric only when search is called via GET /search_browser
+        # If you want to observe for POST requests too, add the observe logic here as well.
         return {"results": results}
     except Exception as e:
         logger.error(f"Error in POST /search endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during search.")
 
-
-# Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "model_name": MODEL_NAME, "faiss_items": index.ntotal}
 
 # --- Prometheus Instrumentation ---
-# Can be uncommented later if needed
-# from prometheus_fastapi_instrumentator import Instrumentator
-# try:
-#     Instrumentator().instrument(app).expose(app)
-#     logger.info("Prometheus instrumentator attached.")
-# except NameError:
-#      logger.info("Prometheus instrumentator not available/installed.")
+# Import and initialize the instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator
+try:
+    # This attaches default metrics (request count, latency) and exposes /metrics
+    Instrumentator().instrument(app).expose(app)
+    logger.info("Prometheus FastAPI instrumentator attached.")
+except Exception as e_instr:
+     logger.error(f"Failed to attach Prometheus instrumentator: {e_instr}")
 # --- --- --- --- --- --- --- ---
