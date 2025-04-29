@@ -1,0 +1,21 @@
+fastapi
+uvicorn[standard] # Includes websockets, needed by prometheus_fastapi_instrumentator
+sentence-transformers
+faiss-cpu # OR faiss-gpu (ensure matching installation method/CUDA version)
+numpy
+pydantic < 2.0 # If older SentenceTransformers require it, check compatibility
+# OR pydantic >= 2.0 if compatible
+
+# For Phase 1 (Offline Processing - if running inside container) or potential API needs:
+pymupdf
+# pytesseract # If using OCR
+requests # For LLM API calls
+# openai # If using OpenAI client lib
+# google-generativeai # If using Google client lib
+
+# For Monitoring/Unit 7
+prometheus-fastapi-instrumentator
+python-json-logger # Optional: For structured logging
+
+# Add any other specific libraries you use (e.g., langchain for chunking)
+# psycopg2-binary # If using PostgreSQL

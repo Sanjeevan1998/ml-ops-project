@@ -1,0 +1,33 @@
+# docker-compose.yaml
+version: '3.8'
+
+services:
+  legal-search-api:
+    build: .
+    container_name: legal-search-api-dummy
+    restart: unless-stopped
+    ports:
+      - "8000:8000" # Map container port 8000 to host port 8000
+    volumes:
+      # Mount the local directories containing dummy artifacts into the container
+      - ./index:/app/index:ro # Mount read-only
+      - ./metadata:/app/metadata:ro # Mount read-only
+      # Mount Hugging Face cache (optional but recommended)
+      - ./hf_cache:/root/.cache/huggingface
+    environment:
+      # You can override ENV vars from Dockerfile here or use .env file if needed
+      # Example: Use .env file
+      # env_file:
+      #   - .env
+      # Example: Override directly
+      # EMBEDDING_MODEL: "paraphrase-MiniLM-L3-v2" # If you wanted to try another
+      MODEL_DEVICE: "cpu" # Explicitly set CPU
+    networks:
+      - legal_search_net
+
+networks:
+  legal_search_net:
+    driver: bridge
+
+volumes:
+    hf_cache: # Define named volume if mounting cache
