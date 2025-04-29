@@ -47,7 +47,7 @@
     ENV FAISS_MAP_PATH="/app/index/faiss_map.pkl"
     ENV METADATA_PATH="/app/metadata/metadata_store.pkl"
     ENV EMBEDDING_MODEL="nlpaueb/legal-bert-base-uncased"
-    ENV MODEL_DEVICE="cpu" # Default to CPU
+    ENV MODEL_DEVICE="cpu"
     # Set PYTHONPATH if needed
     ENV PYTHONPATH="/app"
     
