@@ -8,3 +8,4 @@ torch
 prometheus-fastapi-instrumentator
 jinja2
 prometheus-client
+prometheus-fastapi-instrumentator

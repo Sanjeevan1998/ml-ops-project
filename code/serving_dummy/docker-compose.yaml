@@ -13,6 +13,7 @@ services:
       - ./index:/app/index:ro
       - ./metadata:/app/metadata:ro
       - ./hf_cache:/root/.cache/huggingface
+      - ./feedback_data:/app/feedback_data
     environment:
       MODEL_DEVICE: "cpu"
       # ENV vars for paths and model are now set in Dockerfile

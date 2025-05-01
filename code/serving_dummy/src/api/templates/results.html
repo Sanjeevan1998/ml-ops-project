@@ -11,8 +11,20 @@
         ul { list-style: none; padding: 0; }
         li { background-color: #e9e9e9; margin-bottom: 1em; padding: 1em; border-radius: 4px; }
         strong { color: #0056b3; }
-        a { color: #007bff; text-decoration: none; }
+        a { color: #007bff; text-decoration: none; margin-right: 0.5em; }
         a:hover { text-decoration: underline; }
+        .feedback-buttons button {
+            margin-top: 0.5em;
+            margin-right: 0.5em;
+            padding: 0.3em 0.8em;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .feedback-buttons button.correct { background-color: #d4edda; border-color: #c3e6cb; }
+        .feedback-buttons button.incorrect { background-color: #f8d7da; border-color: #f5c6cb; }
+        .feedback-buttons button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .feedback-msg { font-size: 0.8em; color: green; margin-left: 1em; }
     </style>
 </head>
 <body>
@@ -20,23 +32,83 @@
         <h1>Search Results</h1>
         <p><a href="/">&lt;&lt; New Search</a></p>
 
-        {% if results %}
-            <h2>Found {{ results|length }} results:</h2>
+        {% if error %}
+            <h2 style="color: red;">Error: {{ error }}</h2>
+        {% elif results is not none %} {# Check if results is not None explicitly #}
+            <h2>Found {{ results|length }} results for query: "{{ query }}"</h2>
             <ul>
                 {% for item in results %}
-                <li>
+                <li data-filename="{{ item.source_pdf_filename }}" data-distance="{{ item.distance }}">
                     <strong>Case Name:</strong> {{ item.case_name }}<br>
                     <strong>Citation:</strong> {{ item.citation }}<br>
                     <strong>Source File:</strong> {{ item.source_pdf_filename }}<br>
                     <strong>Distance:</strong> {{ "%.4f"|format(item.distance) }}
+                    <div class="feedback-buttons">
+                        <span>Is this result relevant?</span>
+                        <button class="correct" onclick="sendFeedback(this, true)">Correct 👍</button>
+                        <button class="incorrect" onclick="sendFeedback(this, false)">Incorrect 👎</button>
+                        <span class="feedback-msg" style="display: none;">Thanks!</span>
+                    </div>
                 </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <h2>No results found for your query.</h2>
+            <h2>No results found for query: "{{ query }}"</h2>
         {% endif %}
 
         <p><a href="/">&lt;&lt; New Search</a></p>
     </div>
+
+    <script>
+        // Store the original query (passed from template context)
+        const originalQuery = "{{ query|escapejs }}"; // Use escapejs filter if using Jinja extensions, otherwise basic escaping
+
+        async function sendFeedback(buttonElement, isCorrect) {
+            const listItem = buttonElement.closest('li');
+            const filename = listItem.getAttribute('data-filename');
+            const distance = listItem.getAttribute('data-distance');
+            const feedbackButtonsDiv = buttonElement.parentElement;
+            const feedbackMsgSpan = feedbackButtonsDiv.querySelector('.feedback-msg');
+
+            // Disable buttons after click
+            feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = true);
+
+            const feedbackData = {
+                query: originalQuery,
+                source_pdf_filename: filename,
+                distance: parseFloat(distance), // Convert distance back to float
+                feedback: isCorrect ? 'correct' : 'incorrect'
+                // Add chunk_id here if you pass it to the template:
+                // chunk_id: listItem.getAttribute('data-chunk-id')
+            };
+
+            console.log("Sending feedback:", feedbackData);
+
+            try {
+                const response = await fetch('/log_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(feedbackData),
+                });
+
+                if (response.ok) {
+                    console.log('Feedback logged successfully');
+                    feedbackMsgSpan.style.display = 'inline'; // Show confirmation message
+                } else {
+                    console.error('Failed to log feedback:', response.statusText);
+                    alert('Error saving feedback. Please try again.');
+                    // Re-enable buttons on error
+                    feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                alert('Network error. Could not save feedback.');
+                // Re-enable buttons on error
+                feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = false);
+            }
+        }
+    </script>
 </body>
 </html>
