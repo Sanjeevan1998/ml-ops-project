@@ -61,8 +61,7 @@
 
     <script>
         // Store the original query (passed from template context)
-        const originalQuery = "{{ query|escapejs }}"; // Use escapejs filter if using Jinja extensions, otherwise basic escaping
-
+        const originalQuery = {{ query|tojson }}; // Use tojson filter for safe JS embedding
         async function sendFeedback(buttonElement, isCorrect) {
             const listItem = buttonElement.closest('li');
             const filename = listItem.getAttribute('data-filename');
