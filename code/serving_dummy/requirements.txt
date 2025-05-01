@@ -8,3 +8,5 @@ torch
 prometheus-fastapi-instrumentator
 jinja2
 prometheus-client
+python-multipart
+PyMuPDF
