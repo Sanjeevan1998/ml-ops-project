@@ -44,9 +44,9 @@
     EXPOSE 8000
     
     # Set environment variables (defaults, can be overridden in docker-compose.yaml)
-    ENV FAISS_INDEX_PATH="/app/index/dummy_index.faiss"
-    ENV FAISS_MAP_PATH="/app/index/dummy_map.pkl"
-    ENV METADATA_PATH="/app/metadata/dummy_metadata.pkl"
+    ENV FAISS_INDEX_PATH="/app/index/real_index.faiss"   
+    ENV FAISS_MAP_PATH="/app/index/real_map.pkl"         
+    ENV METADATA_PATH="/app/metadata/real_metadata.pkl"  
     ENV EMBEDDING_MODEL="all-MiniLM-L6-v2"
     ENV MODEL_DEVICE="cpu"
     # Set PYTHONPATH if needed

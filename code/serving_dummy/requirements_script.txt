@@ -1,5 +1,7 @@
-# Dependencies for running the artifact generation script directly
+# requirements_script.txt
 sentence-transformers
 faiss-cpu
 numpy
 torch
+PyMuPDF
+langchain
