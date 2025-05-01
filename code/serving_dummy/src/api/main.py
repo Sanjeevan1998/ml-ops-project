@@ -277,7 +277,13 @@ async def log_feedback(payload: FeedbackItem):
     try:
         feedback_type = payload.feedback.lower()
         FEEDBACK_COUNTER.labels(feedback_type=feedback_type).inc()
-        log_entry = { /* ... log entry details ... */ }
+        log_entry = {
+            "timestamp_utc": datetime.datetime.utcnow().isoformat(),
+            "query": payload.query, # Use the query context from the feedback payload
+            "source_pdf_filename": payload.source_pdf_filename,
+            "distance": payload.distance, # The distance of the best chunk for the doc clicked
+            "feedback": feedback_type
+        }
         with open(FEEDBACK_LOG_FILE, "a") as f: f.write(json.dumps(log_entry) + "\n")
         logger.info(f"Feedback logged: {log_entry}")
         return {"status": "success", "message": "Feedback logged"}
