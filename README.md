@@ -91,7 +91,7 @@ link to their contributions in all repos here. -->
 
 ### System diagram
 
-![System Diagram](https://raw.githubusercontent.com/Sanjeevan1998/mindful/refs/heads/main/Mindful_System_Diagram.png)
+![System Diagram](https://raw.githubusercontent.com/Sanjeevan1998/mindful/refs/heads/main/LegalAI_system_diagram.png)
 
 ### Summary of outside materials
 
