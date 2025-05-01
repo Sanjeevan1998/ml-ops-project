@@ -18,8 +18,16 @@ import urllib.parse # For decoding filenames
 # --- Prometheus Client Setup ---
 # ... (Keep Prometheus metrics definitions the same) ...
 from prometheus_client import Histogram, Counter
-SEARCH_CLOSEST_DISTANCE = Histogram(...) # Same as before
-FEEDBACK_COUNTER = Counter(...) # Same as before
+SEARCH_CLOSEST_DISTANCE = Histogram(
+    "search_closest_distance",              # Metric name
+    "Distance of the closest search result", # Documentation (help text)
+    buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, float("inf")] # Optional: buckets
+)
+FEEDBACK_COUNTER = Counter(
+    "feedback_received_total",              # Metric name
+    "Total count of feedback submissions by type", # Documentation (help text)
+    ['feedback_type']                       # Optional: label names
+)
 
 # --- Configuration ---
 # Paths now loaded from environment variables set in Dockerfile/docker-compose
