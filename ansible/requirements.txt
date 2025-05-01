@@ -1,3 +1,0 @@
-ansible==7.4.0
-jinja2
-netaddr
