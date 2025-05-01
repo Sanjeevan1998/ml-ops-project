@@ -1,1 +1,65 @@
+import pdfplumber
+import os
+import pandas as pd
+import re
 
+# Paths
+RAW_DIR = "data/raw_pdfs/"
+OUT_DIR = "data/processed/"
+OUT_FILE = os.path.join(OUT_DIR, "processed_cases.csv")
+
+os.makedirs(OUT_DIR, exist_ok=True)
+
+# Metadata extraction function
+def extract_metadata(text):
+    # Clean up text for matching
+    cleaned_text = text.replace("\n", " ").strip()
+
+    # Case name (e.g. Roe v. Wade)
+    case_match = re.search(r"\b([A-Z][\w\s.,\-]+ v\. [A-Z][\w\s.,\-]+)", cleaned_text)
+    case_name = case_match.group(1).strip() if case_match else "Unknown Case"
+
+    # Court name
+    court_match = re.search(r"(Supreme Court|Court of Appeals|District Court|Family Court|Circuit Court|Appellate Division)[\w\s,]*", cleaned_text, re.IGNORECASE)
+    court = court_match.group(0).strip() if court_match else "Unknown Court"
+
+    # Decision date (e.g. March 10, 2022)
+    date_match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}", cleaned_text)
+    date = date_match.group(0) if date_match else "Unknown Date"
+
+    return case_name, court, date
+
+# Read all PDFs and extract info
+cases = []
+
+for filename in os.listdir(RAW_DIR):
+    if filename.endswith(".pdf"):
+        path = os.path.join(RAW_DIR, filename)
+
+        try:
+            with pdfplumber.open(path) as pdf:
+                full_text = "\n".join(
+                    page.extract_text() for page in pdf.pages if page.extract_text()
+                )
+
+            case_name, court, decision_date = extract_metadata(full_text)
+
+            case = {
+                "filename": filename,
+                "case_name": case_name,
+                "court": court,
+                "decision_date": decision_date,
+                "summary": full_text[:1000],   # First 1000 chars for preview
+                "full_text": full_text
+            }
+
+            cases.append(case)
+            print(f" Processed: {filename}")
+
+        except Exception as e:
+            print(f" Failed to process {filename}: {e}")
+
+# Save to CSV
+df = pd.DataFrame(cases)
+df.to_csv(OUT_FILE, index=False)
+print(f"\n Saved {len(df)} cases to {OUT_FILE}")
