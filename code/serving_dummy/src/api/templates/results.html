@@ -5,42 +5,152 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
-        .container { background-color: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: auto; } /* Added max-width */
-        h1, h2 { color: #333; }
-        ul { list-style: none; padding: 0; }
-        li.result-item { background-color: #fff; margin-bottom: 1.5em; padding: 1.5em; border-radius: 6px; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } /* Styling for each item */
-        strong { color: #0056b3; display: inline-block; min-width: 120px;} 
-        a { color: #007bff; text-decoration: none; } 
-        a:hover { text-decoration: underline; }
-
-        .feedback-buttons { margin-top: 1em; padding-top: 1em; border-top: 1px solid #eee; } /* Separator */
-        .feedback-buttons button { /* ... keep existing styles ... */ }
-        .feedback-buttons button.correct { /* ... keep existing styles ... */ }
-        .feedback-buttons button.incorrect { /* ... keep existing styles ... */ }
-        .feedback-buttons button:disabled { /* ... keep existing styles ... */ }
-        .feedback-msg { /* ... keep existing styles ... */ }
-
-        .metadata-block { margin-top: 0.8em; font-size: 0.9em; line-height: 1.6; }
-        .chunk-text { margin-top: 0.5em; font-style: italic; color: #555; max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 5px 8px; background-color: #fdfdfd; font-size: 0.9em;} 
-        .download-link { margin-left: 10px; font-weight: bold; } 
-
-        /* Styles for collapsible details */
-        details { margin-top: 0.8em; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9;}
-        details summary { padding: 0.5em; cursor: pointer; font-weight: bold; color: #444; background-color: #f0f0f0; border-radius: 4px 4px 0 0;}
-        details[open] summary { border-bottom: 1px solid #eee; }
-        .details-content { padding: 0.8em; }
-
+        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
+    
+        body {
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            padding: 2em 1em; /* Add some padding */
+            background-color: #f8f9fa;
+            color: #5a5c69;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2.5em 3em;
+            margin: 2em auto; /* Adjusted margin */
+            border-radius: 8px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            max-width: 900px; /* Slightly wider for results */
+        }
+        h1, h2 {
+            color: #3a3b45;
+            margin-bottom: 1em;
+            text-align: center;
+            font-weight: 700;
+        }
+        h2 {
+             margin-top: 1.5em;
+             margin-bottom: 1.5em;
+             font-size: 1.4em;
+             border-bottom: 1px solid #e3e6f0; /* Separator line */
+             padding-bottom: 0.5em;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li.result-item {
+            background-color: #ffffff;
+            margin-bottom: 1.8em; /* Increased spacing */
+            padding: 1.8em; /* Increased padding */
+            border-radius: 6px;
+            border: 1px solid #e3e6f0; /* Defined border color */
+            box-shadow: 0 0.1rem 1rem 0 rgba(58, 59, 69, 0.1); /* Softer shadow */
+            transition: box-shadow 0.3s ease; /* Add hover effect */
+        }
+         li.result-item:hover {
+             box-shadow: 0 0.2rem 1.5rem 0 rgba(58, 59, 69, 0.15); /* Enhance shadow on hover */
+         }
+        strong {
+            color: #4e73df; /* Use primary color */
+            display: inline-block; /* Keep inline-block */
+            min-width: 130px; /* Adjusted width */
+            font-weight: 700;
+            margin-right: 5px; /* Add slight space */
+        }
+        a {
+            color: #4e73df; /* Primary color for links */
+            text-decoration: none;
+            font-weight: 700;
+        }
+        a:hover {
+            text-decoration: underline;
+            color: #2e59d9; /* Darker on hover */
+        }
+        .back-link { /* Style for the "<< New Search" link */
+             display: inline-block;
+             margin-bottom: 2em;
+             font-weight: 700;
+        }
+    
+        /* Feedback buttons styling (Minor adjustments) */
+        .feedback-buttons { margin-top: 1.2em; padding-top: 1.2em; border-top: 1px solid #e3e6f0; }
+        .feedback-buttons button {
+             margin-right: 0.8em; /* Increased spacing */
+             padding: 0.4em 1em;
+             cursor: pointer;
+             border: 1px solid #d1d3e2;
+             border-radius: 4px;
+             font-size: 0.9em;
+             transition: background-color 0.2s ease, border-color 0.2s ease;
+         }
+        .feedback-buttons button.correct { background-color: #e1f7e7; border-color: #a1e4b5; color: #155724; }
+        .feedback-buttons button.correct:hover { background-color: #c3e6cb; }
+        .feedback-buttons button.incorrect { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24;}
+        .feedback-buttons button.incorrect:hover { background-color: #f5c6cb; }
+        .feedback-buttons button:disabled { cursor: not-allowed; opacity: 0.7; }
+        .feedback-msg { font-size: 0.9em; color: #10752f; margin-left: 1em; font-weight: bold;}
+    
+        /* Collapsible details styling */
+        details {
+             margin-top: 1.2em;
+             border: 1px solid #e3e6f0;
+             border-radius: 5px;
+             background-color: #f8f9fc; /* Light background */
+         }
+        details summary {
+             padding: 0.7em 1em; /* More padding */
+             cursor: pointer;
+             font-weight: 700; /* Bold summary */
+             color: #4e73df; /* Primary color */
+             background-color: #eaecf4; /* Slightly different background */
+             border-radius: 4px; /* Round corners */
+             outline: none; /* Remove focus outline */
+             transition: background-color 0.2s ease;
+         }
+         details summary:hover {
+             background-color: #dfe3f0;
+         }
+        details[open] summary {
+             border-bottom: 1px solid #e3e6f0;
+             border-radius: 4px 4px 0 0; /* Adjust corners when open */
+         }
+        .details-content {
+             padding: 1em 1.2em; /* More padding */
+             background-color: #ffffff; /* White background inside */
+             border-radius: 0 0 4px 4px;
+         }
+        .metadata-block { margin: 0; font-size: 0.9em; line-height: 1.7; } /* Adjusted spacing/size */
+        .chunk-text {
+             margin-top: 0.7em; /* More space above chunk */
+             font-style: normal; /* Remove italic */
+             color: #5a5c69; /* Standard text color */
+             max-height: 150px; /* Slightly taller */
+             overflow-y: auto;
+             border: 1px solid #e3e6f0;
+             padding: 8px 10px;
+             background-color: #fdfdfd;
+             font-size: 0.85em; /* Slightly smaller */
+             line-height: 1.5;
+             white-space: pre-wrap; /* Preserve whitespace */
+         }
+         strong.chunk-title { /* Style for the "Most Relevant Chunk Context:" label */
+             display: block; /* Make it block */
+             margin-top: 0.5em;
+             margin-bottom: 0.3em;
+         }
+        .download-link { /* No change needed */ }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Search Results</h1>
-        <p><a href="/">&lt;&lt; New Search</a></p>
+        <p><a class="back-link" href="/">&lt;&lt; New Search</a></p>
 
         {% if error %}
             <h2 style="color: red;">Error: {{ error }}</h2>
-        {% elif results is not none and results|length > 0 %} 
+        {% elif results is not none and results|length > 0 %}
             <h2>Found {{ results|length }} results for query/file: "{{ query }}"</h2> {# Use combined query context #}
             <ul>
                 {% for item in results %}
@@ -48,8 +158,8 @@
                     {# --- Main Identifiers --- #}
                     <div><strong>Case Name:</strong> {{ item.case_name }}</div>
                     <div><strong>Citation:</strong> {{ item.citation }}</div>
-                    <div><strong>Source File:</strong> 
-                         <a href="/download/{{ item.source_pdf_filename | urlencode }}" target="_blank" class="download-link" title="Download {{ item.source_pdf_filename }}">[Download]</a> 
+                    <div><strong>Source File:</strong>
+                         <a href="/download/{{ item.source_pdf_filename | urlencode }}" target="_blank" class="download-link" title="Download {{ item.source_pdf_filename }}">[Download]</a>
                          {{ item.source_pdf_filename }}
                     </div>
                     <div><strong>Similarity Score:</strong> {{ "%.4f"|format(item.similarity_score) }}</div>
@@ -63,7 +173,7 @@
                                 <strong>Judge:</strong> {{ item.judge }}<br>
                                 <strong>Outcome Summary:</strong> {{ item.outcome_summary }}<br>
                                 <strong>Key Legal Issues:</strong> {{ item.key_legal_issues | join(', ') }}<br>
-                                <strong>Most Relevant Chunk Context:</strong>
+                                <strong class="chunk-title">Most Relevant Chunk Context:</strong>
                                 <div class="chunk-text">{{ item.relevant_chunk_text }}</div>
                                 <strong>(Distance of this chunk:</strong> {{ "%.4f"|format(item.distance) }})<br> {# Show distance of the specific chunk #}
                             </div>
@@ -84,18 +194,18 @@
             <h2>No results found for query/file: "{{ query }}"</h2>
         {% endif %}
 
-        <p><a href="/">&lt;&lt; New Search</a></p>
+        <p><a class="back-link" href="/">&lt;&lt; New Search</a></p>
     </div>
 
     <script>
         // Keep the original query context for feedback logging
-        const originalQueryContext = {{ query|tojson }}; 
+        const originalQueryContext = {{ query|tojson }};
 
         // Keep the sendFeedback function exactly the same
         async function sendFeedback(buttonElement, isCorrect) {
             const listItem = buttonElement.closest('li');
             const filename = listItem.getAttribute('data-filename');
-            const distance = listItem.getAttribute('data-distance'); 
+            const distance = listItem.getAttribute('data-distance');
             const feedbackButtonsDiv = buttonElement.parentElement;
             const feedbackMsgSpan = feedbackButtonsDiv.querySelector('.feedback-msg');
 
@@ -104,12 +214,38 @@
             const feedbackData = {
                 query: originalQueryContext, // Log the context (text query or filename)
                 source_pdf_filename: filename,
-                distance: parseFloat(distance), 
+                distance: parseFloat(distance),
                 feedback: isCorrect ? 'correct' : 'incorrect'
             };
-            // ... (rest of fetch logic remains the same) ...
+
             console.log("Sending feedback:", feedbackData);
-             try { /* ... fetch ... */ } catch(e) { /* ... error handling ... */ }
+
+            // *** THIS IS THE CORRECTED TRY/CATCH BLOCK ***
+            try {
+                const response = await fetch('/log_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(feedbackData),
+                });
+
+                if (response.ok) {
+                    console.log('Feedback logged successfully');
+                    feedbackMsgSpan.style.display = 'inline'; // Show confirmation message
+                } else {
+                    console.error('Failed to log feedback:', response.statusText);
+                    alert('Error saving feedback. Please try again.');
+                    // Re-enable buttons on error
+                    feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                alert('Network error. Could not save feedback.');
+                // Re-enable buttons on error
+                feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = false);
+            }
+            // *** END OF CORRECTED BLOCK ***
         }
     </script>
 </body>
