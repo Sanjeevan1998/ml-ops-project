@@ -12,10 +12,16 @@ services:
     volumes:
       - ./index:/app/index:ro
       - ./metadata:/app/metadata:ro
+      - ./real_pdfs:/app/pdf_data:ro
       - ./hf_cache:/root/.cache/huggingface
+      - ./feedback_data:/app/feedback_data
     environment:
       MODEL_DEVICE: "cpu"
       # ENV vars for paths and model are now set in Dockerfile
+      # Update ENV vars below if using different filenames (defaults match Dockerfile)
+      FAISS_INDEX_PATH: "/app/index/real_index.faiss" 
+      FAISS_MAP_PATH: "/app/index/real_map.pkl"       
+      METADATA_PATH: "/app/metadata/real_metadata.pkl" 
     networks:
       - monitoring_net # Use the new network name
 
