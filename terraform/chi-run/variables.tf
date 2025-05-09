@@ -5,17 +5,18 @@ variable "suffix" {
   default = "group36"
 }
 
-variable "key" {
+variable "key_pair" {
   description = "Name of key pair"
   type        = string
   default     = "id_rsa_chameleon"
 }
 
-variable "nodes" {
-  type = map(string)
-  default = {
-    "node1" = "192.168.1.11"
-    "node2" = "192.168.1.12"
-    "node3" = "192.168.1.13"
-  }
+variable "reservation_id" {
+  description = "Reservation UUID for CHI@UC"
+  type        = string
+}
+
+variable "node_name" {
+  description = "Name of the compute host to schedule this instance on"
+  type        = string
 }
