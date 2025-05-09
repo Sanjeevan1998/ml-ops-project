@@ -1,5 +1,0 @@
-# 1. Install Kubernetes Cluster
-- import_playbook: playbooks/k8s-install.yml
-
-# 2. Post Kubernetes Setup
-- import_playbook: playbooks/post-k8s-setup.yml
