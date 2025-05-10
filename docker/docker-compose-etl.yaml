@@ -113,13 +113,31 @@ services:
 
         echo "🚀 Uploading data to container $RCLONE_CONTAINER"
       
-        rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
+        # Upload raw PDFs
+        rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER/raw_pdfs \
         --progress \
-        --transfers=32 \
-        --checkers=16 \
-        --multi-thread-streams=4 \
+        --transfers=8 \
+        --checkers=4 \
+        --multi-thread-streams=2 \
+        --fast-list
+
+        # Upload processed cases
+        rclone copy /data/processed chi_uc:$RCLONE_CONTAINER/processed \
+        --progress \
+        --transfers=8 \
+        --checkers=4 \
+        --multi-thread-streams=2 \
+        --fast-list
+
+        # Upload embeddings
+        rclone copy /data/embeddings chi_uc:$RCLONE_CONTAINER/embeddings \
+        --progress \
+        --transfers=8 \
+        --checkers=4 \
+        --multi-thread-streams=2 \
         --fast-list
 
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
         rclone lsd chi_uc:$RCLONE_CONTAINER
+
