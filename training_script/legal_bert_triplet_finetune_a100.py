@@ -1,3 +1,4 @@
+# File: /home/cc/ml-ops-project/training_script/legal_bert_triplet_finetune_a100.py
 
 import argparse
 import logging
@@ -6,8 +7,8 @@ import json
 from datetime import datetime
 import shutil
 import tempfile
-import random 
-import numpy as np
+import random # For setting seed
+import numpy as np # For setting seed
 
 import torch
 from sentence_transformers import SentenceTransformer, losses, InputExample
@@ -15,8 +16,9 @@ from sentence_transformers.evaluation import TripletEvaluator
 from torch.utils.data import DataLoader
 import mlflow
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split # For data splitting
 
+# OpenStack Swift specific imports
 try:
     import swiftclient
     from keystoneauth1.identity import v3
@@ -25,6 +27,7 @@ except ImportError:
     print("ERROR: Missing OpenStack libraries. Please install: pip install python-swiftclient python-keystoneclient requests scikit-learn")
     exit(1)
 
+# Basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -113,7 +116,6 @@ def setup_local_model_from_swift_native(swift_conn, swift_container_name, swift_
     logger.info(f"All model files downloaded to {local_model_path}")
     return local_model_path
 
-
 def main(args):
     logger.info(f"Fine-tuning run started with args: {args}")
 
@@ -194,7 +196,7 @@ def main(args):
             if dev_samples and args.evaluate_base_model:
                 logger.info("Evaluating base model on development set...")
                 base_model_evaluator = TripletEvaluator.from_input_examples(dev_samples, name='base_model_dev_eval')
-                os.makedirs(args.output_dir, exist_ok=True)
+                os.makedirs(args.output_dir, exist_ok=True) 
                 temp_base_eval_path = tempfile.mkdtemp(dir=args.output_dir)
                 logger.info(f"Created temporary directory for base model evaluation: {temp_base_eval_path}")
 
@@ -211,7 +213,6 @@ def main(args):
                     logger.warning(f"Base model evaluation CSV not found at {base_eval_csv_path}")
                 shutil.rmtree(temp_base_eval_path)
                 logger.info(f"Cleaned up temporary base model evaluation directory: {temp_base_eval_path}")
-
 
             train_loss = losses.TripletLoss(model=model)
             train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=args.batch_size)
@@ -235,7 +236,11 @@ def main(args):
                       checkpoint_save_total_limit=2)
 
             logger.info("Fine-tuning completed.")
-            mlflow.sentence_transformers.log_model(sbert_model=model, artifact_path="legal-bert-finetuned-triplet")
+            # ******** THIS IS THE CORRECTED LINE ********
+            mlflow.sentence_transformers.log_model(sentence_transformers_model=model, artifact_path="legal-bert-finetuned-triplet")
+            # *******************************************
+            logger.info("Trained (fine-tuned) model logged to MLflow.")
+
 
             if evaluator:
                 eval_csv_path = os.path.join(model_output_path_sbert, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
@@ -259,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name_or_path", type=str, default="nlpaueb/legal-bert-base-uncased", 
                         help="Model: HuggingFace ID, local path, or Swift path (swift://container/path/).")
     parser.add_argument("--local_model_temp_dir", type=str, default="/tmp/downloaded_models", help="Base dir for temporary model downloads.")
-    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Directory for SBERT fit outputs and temp eval files.") # Clarified help
+    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Directory for SBERT fit outputs and temp eval files.")
     parser.add_argument("--num_epochs", type=int, default=1, help="Training epochs.")
     parser.add_argument("--batch_size", type=int, default=16, help="Training batch size.")
     parser.add_argument("--warmup_steps", type=int, default=100, help="Learning rate warmup steps.")
@@ -268,8 +273,8 @@ if __name__ == "__main__":
     parser.add_argument("--evaluate_base_model", action='store_true', help="Evaluate base model on dev set before fine-tuning.")
     parser.add_argument("--random_seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--mlflow_tracking_uri", type=str, default=os.getenv("MLFLOW_TRACKING_URI"), help="MLflow server URI.")
-    parser.add_argument("--mlflow_experiment_name", type=str, default="LegalAI-Swift-Sklearn-In-Docker", help="MLflow experiment name.") # Updated default
-    parser.add_argument("--mlflow_run_name", type=str, default=f"sbert-swift-docker-{datetime.now().strftime('%Y%m%d-%H%M%S')}", help="MLflow run name.") # Updated default
+    parser.add_argument("--mlflow_experiment_name", type=str, default="LegalAI-Swift-Sklearn-In-Docker", help="MLflow experiment name.")
+    parser.add_argument("--mlflow_run_name", type=str, default=f"sbert-swift-docker-{datetime.now().strftime('%Y%m%d-%H%M%S')}", help="MLflow run name.")
     
     args = parser.parse_args()
 
