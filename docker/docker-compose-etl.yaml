@@ -101,12 +101,12 @@ services:
     command:
       - -c
       - |
-        if [ -z "$RCLONE_CONTAINER" ]; then
-          echo "ERROR: RCLONE_CONTAINER is not set"
+        if [ -z "object-store-persist-group36" ]; then
+          echo "ERROR: object-store-persist-group36 is not set"
           exit 1
         fi
 
-        echo "🚀 Uploading data to container $RCLONE_CONTAINER..."
+        echo "🚀 Uploading data to container object-store-persist-group36"
         
         rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
         --progress \
@@ -117,4 +117,4 @@ services:
 
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
-        rclone lsd chi_uc:$RCLONE_CONTAINER
+        rclone lsd chi_uc:object-store-persist-group36
