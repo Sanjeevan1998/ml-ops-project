@@ -25,7 +25,7 @@ services:
         cd raw_pdfs
 
         echo "🌐 Downloading dataset from NYU Box..."
-        curl -L https://nyu.box.com/s/aiirowrixydy10weqxg3mmzvxdweumyy -o LexisRaw.zip
+        curl -L https://nyu.box.com/s/aiirowrixydy10weqxg3mmzvxdweumyy \-o LexisRaw.zip
 
         echo "📦 Unzipping dataset..."
         unzip -q LexisRaw.zip
