@@ -4,6 +4,12 @@ name: LexisRaw
 
 volumes:
   lexisraw:
+    name: lexisraw
+  driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/persistent/lexisraw
 
 services:
   # Data Extraction (Download and Unzip from NYU Box)
