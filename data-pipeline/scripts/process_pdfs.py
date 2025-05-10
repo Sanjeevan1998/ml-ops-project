@@ -4,8 +4,8 @@ import pandas as pd
 import re
 
 # Directories
-RAW_DIR = "/_data/raw_pdfs/"
-OUTPUT_DIR = "/_data/processed/"
+RAW_DIR = "/data/raw_pdfs/"
+OUTPUT_DIR = "/data/processed/"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "processed_cases.csv")
 
