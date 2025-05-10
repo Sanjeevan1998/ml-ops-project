@@ -5,7 +5,7 @@ import re
 
 # Directories
 RAW_DIR = "/mnt/persistent/lexisraw/raw_pdfs/"
-OUTPUT_DIR = "/data/processed/"
+OUTPUT_DIR = "/mnt/persistent/processed/"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "processed_cases.csv")
 
