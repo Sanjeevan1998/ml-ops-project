@@ -50,6 +50,7 @@ services:
       - |
         set -e
         echo "📝 Extracting metadata and processing cases..."
+        pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/process_pdfs.py
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
@@ -69,6 +70,7 @@ services:
       - |
         set -e
         echo "🔄 Generating embeddings..."
+        pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/create_embeddings.py
         echo "✅ Embeddings generated."
 
@@ -87,6 +89,7 @@ services:
       - |
         set -e
         echo "🔄 Generating triplets..."
+        pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/generate_triplets.py
         echo "✅ Triplets generated."
 
