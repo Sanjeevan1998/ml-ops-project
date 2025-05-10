@@ -52,6 +52,23 @@ services:
         python3 /data-pipeline/scripts/process_cases.py
         echo "✅ Processed cases saved to /data/processed/processed_cases.csv"
 
+  # Generate Metadata (After Processing Cases)
+  create-metadata:
+    container_name: etl_create_metadata
+    image: python:3.11
+    user: root
+    volumes:
+      - lexisraw:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "🗂️ Generating metadata file..."
+        python3 /scripts/create_metadata.py
+        echo "✅ Metadata saved to /data/embeddings/metadata.csv"
+        
   # Embedding Generation
   create-embeddings:
     container_name: etl_create_embeddings
