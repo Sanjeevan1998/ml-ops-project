@@ -1,3 +1,4 @@
+
 import argparse
 import logging
 import os
@@ -112,20 +113,22 @@ def setup_local_model_from_swift_native(swift_conn, swift_container_name, swift_
     logger.info(f"All model files downloaded to {local_model_path}")
     return local_model_path
 
+
 def main(args):
     logger.info(f"Fine-tuning run started with args: {args}")
 
-    # Set random seeds for reproducibility
     torch.manual_seed(args.random_seed)
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
     logger.info(f"Random seed set to {args.random_seed}")
 
-    # MLflow setup
     if args.mlflow_tracking_uri:
         mlflow.set_tracking_uri(args.mlflow_tracking_uri)
     mlflow.set_experiment(args.mlflow_experiment_name)
     logger.info(f"Using MLflow experiment '{args.mlflow_experiment_name}'")
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    logger.info(f"Ensured output directory exists: {args.output_dir}")
 
     local_model_dir_for_sbert = None 
     swift_conn = None
@@ -136,7 +139,6 @@ def main(args):
             logger.info(f"MLflow run ID: {run_id}")
             mlflow.log_params({k: str(v) if v is not None else "" for k, v in vars(args).items()})
 
-            # Model loading (from Swift or HuggingFace/local)
             if args.model_name_or_path.startswith("swift://"):
                 swift_full_path = args.model_name_or_path[8:]
                 try:
@@ -160,7 +162,6 @@ def main(args):
                 model_to_load = args.model_name_or_path
                 mlflow.log_param("model_source_local_or_hf", args.model_name_or_path)
             
-            # Data loading
             logger.info(f"Loading dataset from {args.data_path}")
             try:
                 dataset_list = pd.read_json(args.data_path, lines=True).to_dict(orient='records')
@@ -169,15 +170,14 @@ def main(args):
             except Exception as e:
                 raise RuntimeError(f"Error loading or parsing data file {args.data_path}: {e}")
 
-            # Data splitting using sklearn
             if args.dev_split_ratio > 0:
                 train_data, dev_data = train_test_split(
                     dataset_list, 
                     test_size=args.dev_split_ratio, 
                     random_state=args.random_seed, 
-                    shuffle=True # Shuffle is True by default but explicit
+                    shuffle=True
                 )
-            else: # No dev set
+            else:
                 train_data = dataset_list
                 dev_data = []
             
@@ -188,16 +188,17 @@ def main(args):
             mlflow.log_param("num_train_samples", len(train_samples))
             mlflow.log_param("num_dev_samples", len(dev_samples))
 
-            # Load SentenceTransformer model
             logger.info(f"Loading SentenceTransformer model from: {model_to_load}")
             model = SentenceTransformer(model_to_load)
 
-            # Evaluate base model if requested
             if dev_samples and args.evaluate_base_model:
                 logger.info("Evaluating base model on development set...")
                 base_model_evaluator = TripletEvaluator.from_input_examples(dev_samples, name='base_model_dev_eval')
+                os.makedirs(args.output_dir, exist_ok=True)
                 temp_base_eval_path = tempfile.mkdtemp(dir=args.output_dir)
-                base_model_evaluator(model, output_path=temp_base_eval_path) # epoch and steps are optional for single eval
+                logger.info(f"Created temporary directory for base model evaluation: {temp_base_eval_path}")
+
+                base_model_evaluator(model, output_path=temp_base_eval_path)
                 
                 base_eval_csv_path = os.path.join(temp_base_eval_path, "triplet_evaluation_base_model_dev_eval_results.csv")
                 if os.path.exists(base_eval_csv_path):
@@ -205,9 +206,13 @@ def main(args):
                     for col, val in base_eval_df.items():
                         if isinstance(val, (int, float)): mlflow.log_metric(f"base_model_eval_{col.replace(' ', '_')}", val)
                     mlflow.log_artifact(base_eval_csv_path, "base_model_evaluation_results")
+                    logger.info(f"Base model evaluation results logged from {base_eval_csv_path}")
+                else:
+                    logger.warning(f"Base model evaluation CSV not found at {base_eval_csv_path}")
                 shutil.rmtree(temp_base_eval_path)
+                logger.info(f"Cleaned up temporary base model evaluation directory: {temp_base_eval_path}")
 
-            # Training setup
+
             train_loss = losses.TripletLoss(model=model)
             train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=args.batch_size)
             
@@ -216,9 +221,7 @@ def main(args):
                 evaluator = TripletEvaluator.from_input_examples(dev_samples, name='finetuned_legal_dev')
             
             model_output_path_sbert = os.path.join(args.output_dir, f"sbert_model_fit_{run_id}")
-            os.makedirs(model_output_path_sbert, exist_ok=True)
             
-            # Fine-tuning
             logger.info("Starting model fine-tuning...")
             model.fit(train_objectives=[(train_dataloader, train_loss)],
                       evaluator=evaluator,
@@ -228,13 +231,12 @@ def main(args):
                       show_progress_bar=True,
                       evaluation_steps=args.evaluation_steps if dev_samples and args.evaluation_steps > 0 else 0,
                       checkpoint_path=os.path.join(args.output_dir, f"checkpoints_{run_id}"),
-                      checkpoint_save_steps=args.evaluation_steps * 2 if dev_samples and args.evaluation_steps > 0 else 1000000, # Save SBERT checkpoints
+                      checkpoint_save_steps=args.evaluation_steps * 2 if dev_samples and args.evaluation_steps > 0 else 1000000,
                       checkpoint_save_total_limit=2)
 
             logger.info("Fine-tuning completed.")
             mlflow.sentence_transformers.log_model(sbert_model=model, artifact_path="legal-bert-finetuned-triplet")
 
-            # Log fine-tuned model evaluation metrics
             if evaluator:
                 eval_csv_path = os.path.join(model_output_path_sbert, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
                 if os.path.exists(eval_csv_path):
@@ -242,12 +244,14 @@ def main(args):
                     for col, val in tuned_eval_df.items():
                         if isinstance(val, (int, float)): mlflow.log_metric(f"finetuned_model_eval_{col.replace(' ', '_')}", val)
                     mlflow.log_artifact(eval_csv_path, "finetuned_model_evaluation_results")
+                    logger.info(f"Fine-tuned model evaluation results logged from {eval_csv_path}")
+                else:
+                    logger.warning(f"Fine-tuned model evaluation CSV not found at {eval_csv_path}")
             logger.info(f"MLflow run {run_id} finished.")
     finally: 
         if local_model_dir_for_sbert and os.path.exists(local_model_dir_for_sbert):
             logger.info(f"Cleaning up temporary model directory: {local_model_dir_for_sbert}")
             shutil.rmtree(local_model_dir_for_sbert)
-        # Swift connection is session-based, usually no explicit close needed for the connection object itself.
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fine-tune Legal-BERT with OpenStack Swift and scikit-learn splitting.")
@@ -255,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name_or_path", type=str, default="nlpaueb/legal-bert-base-uncased", 
                         help="Model: HuggingFace ID, local path, or Swift path (swift://container/path/).")
     parser.add_argument("--local_model_temp_dir", type=str, default="/tmp/downloaded_models", help="Base dir for temporary model downloads.")
-    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Directory for SBERT fit outputs.")
+    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Directory for SBERT fit outputs and temp eval files.") # Clarified help
     parser.add_argument("--num_epochs", type=int, default=1, help="Training epochs.")
     parser.add_argument("--batch_size", type=int, default=16, help="Training batch size.")
     parser.add_argument("--warmup_steps", type=int, default=100, help="Learning rate warmup steps.")
@@ -264,18 +268,18 @@ if __name__ == "__main__":
     parser.add_argument("--evaluate_base_model", action='store_true', help="Evaluate base model on dev set before fine-tuning.")
     parser.add_argument("--random_seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--mlflow_tracking_uri", type=str, default=os.getenv("MLFLOW_TRACKING_URI"), help="MLflow server URI.")
-    parser.add_argument("--mlflow_experiment_name", type=str, default="LegalAI-Triplet-Finetuning-Swift", help="MLflow experiment name.")
-    parser.add_argument("--mlflow_run_name", type=str, default=f"sbert-swift-{datetime.now().strftime('%Y%m%d-%H%M%S')}", help="MLflow run name.")
+    parser.add_argument("--mlflow_experiment_name", type=str, default="LegalAI-Swift-Sklearn-In-Docker", help="MLflow experiment name.") # Updated default
+    parser.add_argument("--mlflow_run_name", type=str, default=f"sbert-swift-docker-{datetime.now().strftime('%Y%m%d-%H%M%S')}", help="MLflow run name.") # Updated default
     
     args = parser.parse_args()
 
     if not (0.0 <= args.dev_split_ratio < 1.0):
         raise ValueError("dev_split_ratio must be between 0.0 and <1.0")
-    if not args.mlflow_tracking_uri: # Auto-detect MLflow URI if not set
+    if not args.mlflow_tracking_uri: 
         try:
             node_ip = os.popen("hostname -I | awk '{print $1}'").read().strip()
             if node_ip: args.mlflow_tracking_uri = f"http://{node_ip}:8000"
-        except Exception: pass # Ignore if auto-detection fails
+        except Exception: pass 
         if not args.mlflow_tracking_uri:
             logger.error("MLflow Tracking URI must be provided via --mlflow_tracking_uri or auto-detection.")
             exit(1)
