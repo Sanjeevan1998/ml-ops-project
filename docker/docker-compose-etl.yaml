@@ -91,23 +91,26 @@ services:
         echo "✅ Triplets generated."
 
   # Data Upload
+  
   load-data:
     container_name: etl_load_data
     image: rclone/rclone:latest
     volumes:
-      - lexisraw:/data
-      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    - lexisraw:/data
+    - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    environment:
+      RCLONE_CONTAINER: object-store-persist-group36
     entrypoint: /bin/sh
     command:
       - -c
       - |
-        if [ -z "object-store-persist-group36" ]; then
-          echo "ERROR: object-store-persist-group36 is not set"
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
           exit 1
         fi
 
-        echo "🚀 Uploading data to container object-store-persist-group36"
-        
+        echo "🚀 Uploading data to container $RCLONE_CONTAINER"
+      
         rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
         --progress \
         --transfers=32 \
@@ -117,4 +120,5 @@ services:
 
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
-        rclone lsd chi_uc:object-store-persist-group36
+        rclone lsd chi_uc:$RCLONE_CONTAINER
+
