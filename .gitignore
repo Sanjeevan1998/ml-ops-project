@@ -5,3 +5,9 @@
 **/.terraform.lock.hcl
 **/.terraform.tfstate.lock.info
 **/terraform.tfstate
+
+
+
+# macOS system files
+.DS_Store
+**/.DS_Store
