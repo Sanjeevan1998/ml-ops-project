@@ -32,7 +32,7 @@ services:
         rm -f LexisRaw.zip
 
         echo "✅ Data extracted to /data/raw_pdfs/"
-        ls -lh /data-pipeline
+        ls -lh /data-pipeline/raw-pdfs/
 
   # Embedding Generation
   create-embeddings:
@@ -86,7 +86,7 @@ services:
 
         echo "🚀 Uploading data to container $RCLONE_CONTAINER..."
         
-        rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
+        rclone copy /data-pipeline/raw_pdfs chi_uc:$RCLONE_CONTAINER \
         --progress \
         --transfers=32 \
         --checkers=16 \
