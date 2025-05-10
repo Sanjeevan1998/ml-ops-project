@@ -4,11 +4,6 @@ name: LexisRaw
 volumes:
   lexisraw:
     name: lexisraw
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /var/lib/docker/volumes/lexisraw/_data
 
 services:
   # Data Extraction (Download and Unzip from NYU Box)
