@@ -15,6 +15,7 @@ services:
       - ./real_pdfs:/app/pdf_data:ro
       - ./hf_cache:/root/.cache/huggingface
       - ./feedback_data:/app/feedback_data
+      - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro  
     environment:
       MODEL_DEVICE: "cpu"
       # ENV vars for paths and model are now set in Dockerfile
@@ -22,6 +23,7 @@ services:
       FAISS_INDEX_PATH: "/app/index/real_index.faiss" 
       FAISS_MAP_PATH: "/app/index/real_map.pkl"       
       METADATA_PATH: "/app/metadata/real_metadata.pkl" 
+      EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT"
     networks:
       - monitoring_net # Use the new network name
 
