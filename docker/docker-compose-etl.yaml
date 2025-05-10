@@ -37,21 +37,21 @@ services:
  
   # Process Cases and Generate Metadata (Combined)
   processcases-and-createmetadata:
-  container_name: etl_process_cases
-  image: python:3.11
-  user: root
-  volumes:
-    - lexisraw:/data
-  working_dir: /data
-  command:
-    - bash
-    - -c
-    - |
-      set -e
-      echo "📝 Extracting metadata and processing cases..."
-      python3 /data-pipeline/scripts/process_cases.py
-      python3 /data-pipeline/scripts/create_metadata.py
-      echo "✅ Processed cases and metadata saved."
+    container_name: etl_process_cases
+    image: python:3.11
+    user: root
+    volumes:
+      - lexisraw:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "📝 Extracting metadata and processing cases..."
+        python3 /data-pipeline/scripts/process_cases.py
+        python3 /data-pipeline/scripts/create_metadata.py
+        echo "✅ Processed cases and metadata saved."
 
         
   # Embedding Generation
