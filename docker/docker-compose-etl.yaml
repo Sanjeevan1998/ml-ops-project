@@ -35,39 +35,24 @@ services:
         ls -lh /data/raw_pdfs/
 
  
-  # Process Cases (Extract Metadata and Clean Text)
-  process-cases:
-    container_name: etl_process_cases
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/data
-    working_dir: /data
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "📝 Extracting metadata and processing cases..."
-        python3 /data-pipeline/scripts/process_cases.py
-        echo "✅ Processed cases saved to /data/processed/processed_cases.csv"
+  # Process Cases and Generate Metadata (Combined)
+  processcases-and-createmetadata:
+  container_name: etl_process_cases
+  image: python:3.11
+  user: root
+  volumes:
+    - lexisraw:/data
+  working_dir: /data
+  command:
+    - bash
+    - -c
+    - |
+      set -e
+      echo "📝 Extracting metadata and processing cases..."
+      python3 /data-pipeline/scripts/process_cases.py
+      python3 /data-pipeline/scripts/create_metadata.py
+      echo "✅ Processed cases and metadata saved."
 
-  # Generate Metadata (After Processing Cases)
-  create-metadata:
-    container_name: etl_create_metadata
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/data
-    working_dir: /data
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "🗂️ Generating metadata file..."
-        python3 /scripts/create_metadata.py
-        echo "✅ Metadata saved to /data/embeddings/metadata.csv"
         
   # Embedding Generation
   create-embeddings:
@@ -121,7 +106,7 @@ services:
 
         echo "🚀 Uploading data to container $RCLONE_CONTAINER..."
         
-        rclone copy /data-pipeline/raw_pdfs chi_uc:$RCLONE_CONTAINER \
+        rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
         --progress \
         --transfers=32 \
         --checkers=16 \
