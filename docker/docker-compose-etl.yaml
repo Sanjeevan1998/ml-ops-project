@@ -13,8 +13,7 @@ services:
     user: root
     volumes:
       - lexisraw:/data
-      - /home/cc/ml-ops-project/data-pipeline/scripts:/data-pipeline
-
+      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
     working_dir: /data
     command:
       - bash
@@ -36,7 +35,6 @@ services:
         echo "✅ Data extracted to /data/raw_pdfs/"
         ls -lh /data/raw_pdfs/
 
- 
   # Process Cases and Generate Metadata (Combined)
   processcases-and-createmetadata:
     container_name: etl_process_cases
@@ -52,11 +50,10 @@ services:
       - |
         set -e
         echo "📝 Extracting metadata and processing cases..."
-        python3 data-pipeline/scripts/process_pdfs.py
+        python3 /data-pipeline/scripts/process_pdfs.py
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
 
-        
   # Embedding Generation
   create-embeddings:
     container_name: etl_create_embeddings
@@ -64,6 +61,7 @@ services:
     user: root
     volumes:
       - lexisraw:/data
+      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
     working_dir: /data
     command:
       - bash
@@ -81,6 +79,7 @@ services:
     user: root
     volumes:
       - lexisraw:/data
+      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
     working_dir: /data
     command:
       - bash
@@ -92,13 +91,12 @@ services:
         echo "✅ Triplets generated."
 
   # Data Upload
-  
   load-data:
     container_name: etl_load_data
     image: rclone/rclone:latest
     volumes:
-    - lexisraw:/data
-    - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+      - lexisraw:/data
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
     environment:
       RCLONE_CONTAINER: object-store-persist-group36
     entrypoint: /bin/sh
@@ -122,4 +120,3 @@ services:
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
         rclone lsd chi_uc:$RCLONE_CONTAINER
-
