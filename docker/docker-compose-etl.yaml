@@ -32,7 +32,7 @@ services:
         rm -f LexisRaw.zip
 
         echo "✅ Data extracted to /data/raw_pdfs/"
-        ls -lh /data/raw_pdfs/
+        ls -lh /data-pipeline
 
   # Embedding Generation
   create-embeddings:
@@ -48,7 +48,7 @@ services:
       - |
         set -e
         echo "🔄 Generating embeddings..."
-        python3 /scripts/create_embeddings.py
+        python3 /data-pipeline/scripts/create_embeddings.py
         echo "✅ Embeddings generated."
 
   # Triplet Generation
@@ -65,7 +65,7 @@ services:
       - |
         set -e
         echo "🔄 Generating triplets..."
-        python3 /scripts/generate_triplets.py
+        python3 /data-pipeline/scripts/generate_triplets.py
         echo "✅ Triplets generated."
 
   # Data Upload
