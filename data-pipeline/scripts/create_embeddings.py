@@ -5,12 +5,12 @@ import numpy as np
 import os
 
 # File paths
-input_file = "/data-pipeline/processed/processed_cases.csv"
-embedding_file = "/data-pipeline/embeddings/legal_embeddings.npy"
-metadata_file = "/data-pipeline/embeddings/metadata.csv"
+input_file = "/data/processed/processed_cases.csv"
+embedding_file = "/data/embeddings/legal_embeddings.npy"
+metadata_file = "/data/embeddings/metadata.csv"
 
 # Create directories if they don't exist
-os.makedirs("/data-pipeline/embeddings/", exist_ok=True)
+os.makedirs("/data/embeddings/", exist_ok=True)
 
 # Load the data
 df = pd.read_csv(input_file)
