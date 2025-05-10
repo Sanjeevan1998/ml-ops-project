@@ -5,7 +5,7 @@ name: LexisRaw
 volumes:
   lexisraw:
     name: lexisraw
-  driver: local
+    driver: local
     driver_opts:
       type: none
       o: bind
