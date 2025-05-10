@@ -44,7 +44,7 @@ services:
     user: root
     volumes:
       - lexisraw:/data
-      - - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
+      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
     working_dir: /data
     command:
       - bash
