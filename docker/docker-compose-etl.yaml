@@ -49,7 +49,7 @@ services:
       - |
         set -e
         echo "📝 Extracting metadata and processing cases..."
-        python3 /data-pipeline/scripts/process_cases.py
+        python3 /data-pipeline/scripts/process_pdfs.py
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
 
