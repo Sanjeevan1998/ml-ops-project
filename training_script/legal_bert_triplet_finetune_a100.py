@@ -5,8 +5,8 @@ import json
 from datetime import datetime
 import shutil
 import tempfile
-import random
-import numpy as np
+import random 
+import numpy as np 
 
 import torch
 from sentence_transformers import SentenceTransformer, losses, InputExample
@@ -14,7 +14,7 @@ from sentence_transformers.evaluation import TripletEvaluator
 from torch.utils.data import DataLoader
 import mlflow
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split 
 
 try:
     import swiftclient
@@ -24,7 +24,6 @@ except ImportError:
     print("ERROR: Missing OpenStack libraries. Please install: pip install python-swiftclient python-keystoneclient requests scikit-learn")
     exit(1)
 
-# Basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,13 @@ def get_swift_connection():
         }
         os_options = {k: v for k, v in os_options.items() if v is not None}
 
-        conn = swiftclient.Connection(session=sess, os_options=os_options)
+        conn_kwargs = {
+            'session': sess,
+            'os_options': os_options,
+            'retries': 5, 
+            'starting_backoff': 2, 
+        }
+        conn = swiftclient.Connection(**conn_kwargs)
         logger.info("Successfully connected to OpenStack Swift.")
         return conn
     except Exception as e:
@@ -77,10 +82,11 @@ def download_from_swift_native(swift_conn, container_name, object_key, local_pat
     """Downloads a single file from Swift."""
     try:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        logger.info(f"Attempting to download swift://{container_name}/{object_key} to {local_path}")
         _resp_headers, obj_contents = swift_conn.get_object(container_name, object_key)
         with open(local_path, 'wb') as local_file:
             local_file.write(obj_contents)
-        logger.info(f"Downloaded swift://{container_name}/{object_key} to {local_path}")
+        logger.info(f"Successfully downloaded swift://{container_name}/{object_key} to {local_path}")
         return True
     except swiftclient.exceptions.ClientException as e:
         logger.error(f"Swift download error for {object_key}: {e} (Status: {e.http_status if hasattr(e, 'http_status') else 'N/A'})")
@@ -92,7 +98,7 @@ def download_from_swift_native(swift_conn, container_name, object_key, local_pat
 def setup_local_model_from_swift_native(swift_conn, swift_container_name, swift_model_prefix, local_model_dir_base):
     """Downloads model components from Swift to a temporary local directory."""
     local_model_path = tempfile.mkdtemp(dir=local_model_dir_base)
-    logger.info(f"Created temporary local model directory: {local_model_path}")
+    logger.info(f"Created temporary local model directory for base model: {local_model_path}")
 
     if not swift_model_prefix.endswith('/'):
         swift_model_prefix += '/'
@@ -129,6 +135,7 @@ def upload_directory_to_swift(swift_conn, local_directory, container_name, desti
         destination_prefix += '/'
 
     try:
+
         for root, dirs, files in os.walk(local_directory):
             for filename in files:
                 local_filepath = os.path.join(root, filename)
@@ -136,7 +143,7 @@ def upload_directory_to_swift(swift_conn, local_directory, container_name, desti
                 swift_object_name = os.path.join(destination_prefix, relative_path).replace("\\", "/") 
 
                 with open(local_filepath, 'rb') as f:
-                    swift_conn.put_object(container_name, swift_object_name, contents=f)
+                    swift_conn.put_object(container_name, swift_object_name, contents=f, headers={'X-Object-Manifest': destination_prefix.strip('/')}) # Added headers for potential large object handling
                 logger.info(f"Uploaded {local_filepath} to swift://{container_name}/{swift_object_name}")
         logger.info(f"Successfully uploaded directory {local_directory} to swift://{container_name}/{destination_prefix}")
         return True
@@ -258,7 +265,7 @@ def main(args):
             if dev_samples:
                 evaluator = TripletEvaluator.from_input_examples(dev_samples, name='finetuned_legal_dev')
             
-            sbert_native_save_path = os.path.join(args.output_dir, f"sbert_finetuned_model_{run_id}")
+            sbert_native_save_path = os.path.join(args.output_dir, f"sbert_finetuned_model_intermediate_{run_id}")
             
             logger.info("Starting model fine-tuning...")
             model.fit(train_objectives=[(train_dataloader, train_loss)],
@@ -272,45 +279,62 @@ def main(args):
                       checkpoint_save_steps=args.evaluation_steps * 2 if dev_samples and args.evaluation_steps > 0 else 1000000,
                       checkpoint_save_total_limit=2)
 
-            logger.info(f"Fine-tuning completed. SentenceTransformer model components (if any best model saved by fit) are at: {sbert_native_save_path}")
+            logger.info(f"Fine-tuning completed. Intermediate SBERT saves (best model during fit, checkpoints) are at: {sbert_native_save_path}")
             
             final_model_save_dir = os.path.join(args.output_dir, f"final_sbert_model_{run_id}")
             model.save(final_model_save_dir)
-            logger.info(f"Final fine-tuned model explicitly saved to: {final_model_save_dir}")
+            logger.info(f"Final fine-tuned model explicitly saved locally to: {final_model_save_dir}")
             
-            mlflow.log_artifacts(final_model_save_dir, artifact_path="legal-bert-finetuned-model-files")
-            logger.info(f"Fine-tuned model files from {final_model_save_dir} logged to MLflow artifacts under 'legal-bert-finetuned-model-files'.")
+            local_save_success_indicator = os.path.join(final_model_save_dir, "_LOCAL_SAVE_SUCCESSFUL.txt")
+            with open(local_save_success_indicator, "w") as f:
+                f.write(f"Model successfully saved locally to {final_model_save_dir} at {datetime.utcnow().isoformat()}Z")
+            try:
+                mlflow.log_artifact(local_save_success_indicator, "model_save_status")
+                logger.info(f"Logged local save indicator to MLflow artifacts.")
+            except Exception as e_mlflow_artifact_log:
+                logger.warning(f"Could not log local save indicator to MLflow: {e_mlflow_artifact_log}")
 
 
-            if args.upload_model_to_swift and swift_conn:
-                if os.path.isdir(final_model_save_dir):
-                    target_swift_prefix = args.swift_upload_prefix or f"models/legal-bert-finetuned/{run_id}"
-                    upload_success = upload_directory_to_swift(
-                        swift_conn,
-                        final_model_save_dir, 
-                        args.swift_container_name,
-                        target_swift_prefix
-                    )
-                    if upload_success:
-                        mlflow.log_param("finetuned_model_swift_path", f"swift://{args.swift_container_name}/{target_swift_prefix}")
-                        logger.info(f"Fine-tuned model also uploaded to Swift: swift://{args.swift_container_name}/{target_swift_prefix}")
+            if args.upload_model_to_swift:
+                if swift_conn:
+                    if os.path.isdir(final_model_save_dir): 
+                        target_swift_prefix = args.swift_upload_prefix or f"models/legal-bert-finetuned/{run_id}"
+                        upload_success = upload_directory_to_swift(
+                            swift_conn,
+                            final_model_save_dir, 
+                            args.swift_container_name,
+                            target_swift_prefix
+                        )
+                        if upload_success:
+                            swift_uri = f"swift://{args.swift_container_name}/{target_swift_prefix}"
+                            mlflow.log_param("finetuned_model_swift_location", swift_uri)
+                            logger.info(f"Fine-tuned model uploaded to Swift: {swift_uri} and its location logged to MLflow.")
+                        else:
+                            logger.error(f"Failed to upload fine-tuned model to Swift. Model is available locally at {final_model_save_dir}")
+                            mlflow.log_param("finetuned_model_swift_upload_status", "failed")
+                            mlflow.log_param("finetuned_model_local_fallback_path", final_model_save_dir)
                     else:
-                        logger.error("Failed to upload fine-tuned model to Swift.")
-                else:
-                    logger.warning(f"Final model save directory {final_model_save_dir} not found. Skipping Swift upload.")
-            elif args.upload_model_to_swift and not swift_conn:
-                 logger.warning("Swift upload requested but connection is not available. Skipping Swift upload.")
+                        logger.warning(f"Final model save directory {final_model_save_dir} not found. Skipping Swift upload.")
+                else: # Swift connection failed earlier
+                     logger.warning(f"Swift upload requested but connection is not available. Skipping Swift upload. Model is available locally at {final_model_save_dir}")
+                     mlflow.log_param("finetuned_model_swift_upload_status", "skipped_no_connection")
+                     mlflow.log_param("finetuned_model_local_fallback_path", final_model_save_dir)
+            else: # Swift upload not requested
+                logger.info(f"Swift upload not requested. Model is available locally at {final_model_save_dir}")
+                mlflow.log_param("finetuned_model_local_path", final_model_save_dir)
 
 
             if evaluator:
-                # SBERT saves eval results inside its output_path (sbert_native_save_path)
                 eval_csv_path = os.path.join(sbert_native_save_path, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
                 if os.path.exists(eval_csv_path):
                     tuned_eval_df = pd.read_csv(eval_csv_path).iloc[-1]
                     for col, val in tuned_eval_df.items():
                         if isinstance(val, (int, float)): mlflow.log_metric(f"finetuned_model_eval_{col.replace(' ', '_')}", val)
-                    mlflow.log_artifact(eval_csv_path, "finetuned_model_evaluation_results")
-                    logger.info(f"Fine-tuned model evaluation results logged from {eval_csv_path}")
+                    try:
+                        mlflow.log_artifact(eval_csv_path, "finetuned_model_evaluation_results")
+                        logger.info(f"Fine-tuned model evaluation results logged from {eval_csv_path}")
+                    except Exception as e_eval_log:
+                        logger.warning(f"Could not log evaluation CSV to MLflow: {e_eval_log}")
                 else:
                     logger.warning(f"Fine-tuned model evaluation CSV not found at {eval_csv_path}. Check SBERT output path.")
             logger.info(f"MLflow run {run_id} finished.")
