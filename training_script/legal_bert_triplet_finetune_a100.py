@@ -5,8 +5,8 @@ import json
 from datetime import datetime
 import shutil
 import tempfile
-import random 
-import numpy as np 
+import random
+import numpy as np
 
 import torch
 from sentence_transformers import SentenceTransformer, losses, InputExample
@@ -14,7 +14,7 @@ from sentence_transformers.evaluation import TripletEvaluator
 from torch.utils.data import DataLoader
 import mlflow
 import pandas as pd
-from sklearn.model_selection import train_test_split 
+from sklearn.model_selection import train_test_split
 
 try:
     import swiftclient
@@ -258,31 +258,36 @@ def main(args):
             if dev_samples:
                 evaluator = TripletEvaluator.from_input_examples(dev_samples, name='finetuned_legal_dev')
             
-            model_output_path_sbert = os.path.join(args.output_dir, f"sbert_model_fit_{run_id}")
+            sbert_native_save_path = os.path.join(args.output_dir, f"sbert_finetuned_model_{run_id}")
             
             logger.info("Starting model fine-tuning...")
             model.fit(train_objectives=[(train_dataloader, train_loss)],
                       evaluator=evaluator,
                       epochs=args.num_epochs,
                       warmup_steps=args.warmup_steps,
-                      output_path=model_output_path_sbert, 
+                      output_path=sbert_native_save_path, 
                       show_progress_bar=True,
                       evaluation_steps=args.evaluation_steps if dev_samples and args.evaluation_steps > 0 else 0,
-                      checkpoint_path=os.path.join(args.output_dir, f"checkpoints_{run_id}"),
+                      checkpoint_path=os.path.join(sbert_native_save_path, "checkpoints"), 
                       checkpoint_save_steps=args.evaluation_steps * 2 if dev_samples and args.evaluation_steps > 0 else 1000000,
                       checkpoint_save_total_limit=2)
 
-            logger.info(f"Fine-tuning completed. Model saved by SBERT to: {model_output_path_sbert}")
+            logger.info(f"Fine-tuning completed. SentenceTransformer model components (if any best model saved by fit) are at: {sbert_native_save_path}")
             
-            mlflow.sentence_transformers.log_model(model=model, artifact_path="legal-bert-finetuned-mlflow")
-            logger.info("Trained (fine-tuned) model logged to MLflow artifacts.")
+            final_model_save_dir = os.path.join(args.output_dir, f"final_sbert_model_{run_id}")
+            model.save(final_model_save_dir)
+            logger.info(f"Final fine-tuned model explicitly saved to: {final_model_save_dir}")
+            
+            mlflow.log_artifacts(final_model_save_dir, artifact_path="legal-bert-finetuned-model-files")
+            logger.info(f"Fine-tuned model files from {final_model_save_dir} logged to MLflow artifacts under 'legal-bert-finetuned-model-files'.")
+
 
             if args.upload_model_to_swift and swift_conn:
-                if os.path.isdir(model_output_path_sbert):
+                if os.path.isdir(final_model_save_dir):
                     target_swift_prefix = args.swift_upload_prefix or f"models/legal-bert-finetuned/{run_id}"
                     upload_success = upload_directory_to_swift(
                         swift_conn,
-                        model_output_path_sbert, 
+                        final_model_save_dir, 
                         args.swift_container_name,
                         target_swift_prefix
                     )
@@ -292,12 +297,14 @@ def main(args):
                     else:
                         logger.error("Failed to upload fine-tuned model to Swift.")
                 else:
-                    logger.warning(f"SBERT output path {model_output_path_sbert} not found. Skipping Swift upload.")
+                    logger.warning(f"Final model save directory {final_model_save_dir} not found. Skipping Swift upload.")
             elif args.upload_model_to_swift and not swift_conn:
                  logger.warning("Swift upload requested but connection is not available. Skipping Swift upload.")
 
+
             if evaluator:
-                eval_csv_path = os.path.join(model_output_path_sbert, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
+                # SBERT saves eval results inside its output_path (sbert_native_save_path)
+                eval_csv_path = os.path.join(sbert_native_save_path, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
                 if os.path.exists(eval_csv_path):
                     tuned_eval_df = pd.read_csv(eval_csv_path).iloc[-1]
                     for col, val in tuned_eval_df.items():
@@ -305,7 +312,7 @@ def main(args):
                     mlflow.log_artifact(eval_csv_path, "finetuned_model_evaluation_results")
                     logger.info(f"Fine-tuned model evaluation results logged from {eval_csv_path}")
                 else:
-                    logger.warning(f"Fine-tuned model evaluation CSV not found at {eval_csv_path}")
+                    logger.warning(f"Fine-tuned model evaluation CSV not found at {eval_csv_path}. Check SBERT output path.")
             logger.info(f"MLflow run {run_id} finished.")
     finally: 
         if local_model_dir_for_sbert and os.path.exists(local_model_dir_for_sbert):
@@ -318,7 +325,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name_or_path", type=str, default="nlpaueb/legal-bert-base-uncased", 
                         help="Model: HuggingFace ID, local path, or Swift path (swift://container/path/).")
     parser.add_argument("--local_model_temp_dir", type=str, default="/tmp/downloaded_models", help="Base dir for temporary model downloads.")
-    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Directory for SBERT fit outputs and temp eval files.")
+    parser.add_argument("--output_dir", type=str, default="./sbert_output", help="Base directory for SBERT fit outputs, temp eval files, and final model save for logging.")
     parser.add_argument("--num_epochs", type=int, default=1, help="Training epochs.")
     parser.add_argument("--batch_size", type=int, default=16, help="Training batch size.")
     parser.add_argument("--warmup_steps", type=int, default=100, help="Learning rate warmup steps.")
