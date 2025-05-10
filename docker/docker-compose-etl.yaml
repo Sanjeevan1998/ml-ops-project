@@ -13,7 +13,8 @@ services:
     user: root
     volumes:
       - lexisraw:/data
-      - ~/ml-ops-project/data-pipeline/scripts/:/data-pipeline/scripts/
+      - /home/cc/ml-ops-project/data-pipeline/scripts/:/data-pipeline/scripts/
+
     working_dir: /data
     command:
       - bash
