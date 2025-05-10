@@ -18,9 +18,9 @@ services:
     image: python:3.11
     user: root
     volumes:
-      - lexisraw:/data
+      - lexisraw:/_data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data
+    working_dir: /_data
     command:
       - bash
       - -c
@@ -47,9 +47,9 @@ services:
     image: python:3.11
     user: root
     volumes:
-      - lexisraw:/data
+      - lexisraw:/_data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data/processed
+    working_dir: /_data/processed
     command:
       - bash
       - -c
@@ -61,7 +61,7 @@ services:
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
         echo "Listing contents of /data/processed after transform stage:"
-        ls -l /data/processed
+        ls -l /_data/processed
 
   # Embedding Generation
   create-embeddings:
