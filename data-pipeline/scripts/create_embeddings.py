@@ -11,9 +11,20 @@ metadata_file = "/data/embeddings/metadata.csv"
 
 # Create directories if they don't exist
 os.makedirs("/data/embeddings/", exist_ok=True)
+os.makedirs("/data/processed/", exist_ok=True)
+
+# Check if the processed file exists
+if not os.path.exists(input_file):
+    print(f"❌ Error: {input_file} not found. Make sure the processed cases are generated.")
+    exit(1)
 
 # Load the data
 df = pd.read_csv(input_file)
+
+# Check if the dataframe is empty
+if df.empty:
+    print(f"❌ Error: {input_file} is empty. Cannot create embeddings.")
+    exit(1)
 
 # Load the Legal-BERT model
 tokenizer = AutoTokenizer.from_pretrained("nlpaueb/legal-bert-base-uncased")
@@ -54,4 +65,3 @@ print(f"✅ Saved embeddings to {embedding_file}")
 # Save metadata
 pd.DataFrame(metadata, columns=["case_name", "court", "date"]).to_csv(metadata_file, index=False)
 print(f"✅ Saved metadata to {metadata_file}")
-
