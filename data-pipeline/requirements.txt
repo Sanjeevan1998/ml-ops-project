@@ -1,0 +1,6 @@
+pdfplumber
+pandas
+numpy
+torch
+transformers
+faiss
