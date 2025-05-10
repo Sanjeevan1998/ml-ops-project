@@ -1,5 +1,3 @@
-# File: /home/cc/ml-ops-project/training_script/legal_bert_triplet_finetune_a100.py
-
 import argparse
 import logging
 import os
@@ -7,8 +5,8 @@ import json
 from datetime import datetime
 import shutil
 import tempfile
-import random # For setting seed
-import numpy as np # For setting seed
+import random 
+import numpy as np 
 
 import torch
 from sentence_transformers import SentenceTransformer, losses, InputExample
@@ -16,9 +14,8 @@ from sentence_transformers.evaluation import TripletEvaluator
 from torch.utils.data import DataLoader
 import mlflow
 import pandas as pd
-from sklearn.model_selection import train_test_split # For data splitting
+from sklearn.model_selection import train_test_split 
 
-# OpenStack Swift specific imports
 try:
     import swiftclient
     from keystoneauth1.identity import v3
@@ -101,7 +98,7 @@ def setup_local_model_from_swift_native(swift_conn, swift_container_name, swift_
         swift_model_prefix += '/'
             
     files_to_download_map = {
-        f"{swift_model_prefix}legal_bert_base_uncased_statedict.pth": "pytorch_model.bin", # Renamed for SBERT
+        f"{swift_model_prefix}legal_bert_base_uncased_statedict.pth": "pytorch_model.bin",
         f"{swift_model_prefix}model_config/config.json": "config.json",
         f"{swift_model_prefix}tokenizer/special_tokens_map.json": "special_tokens_map.json",
         f"{swift_model_prefix}tokenizer/tokenizer_config.json": "tokenizer_config.json",
@@ -111,10 +108,44 @@ def setup_local_model_from_swift_native(swift_conn, swift_container_name, swift_
 
     for swift_key, local_filename in files_to_download_map.items():
         if not download_from_swift_native(swift_conn, swift_container_name, swift_key, os.path.join(local_model_path, local_filename)):
-            shutil.rmtree(local_model_path) # Cleanup on failure
+            shutil.rmtree(local_model_path) 
             return None
-    logger.info(f"All model files downloaded to {local_model_path}")
+    logger.info(f"All base model files downloaded to {local_model_path}")
     return local_model_path
+
+def upload_directory_to_swift(swift_conn, local_directory, container_name, destination_prefix):
+    """Uploads all files from a local directory to a Swift container under a destination prefix."""
+    if not swift_conn:
+        logger.error("Swift connection not available. Cannot upload model.")
+        return False
+    
+    if not os.path.isdir(local_directory):
+        logger.error(f"Local directory {local_directory} not found. Cannot upload.")
+        return False
+
+    logger.info(f"Starting upload of directory {local_directory} to swift://{container_name}/{destination_prefix}")
+    
+    if not destination_prefix.endswith('/'):
+        destination_prefix += '/'
+
+    try:
+        for root, dirs, files in os.walk(local_directory):
+            for filename in files:
+                local_filepath = os.path.join(root, filename)
+                relative_path = os.path.relpath(local_filepath, local_directory)
+                swift_object_name = os.path.join(destination_prefix, relative_path).replace("\\", "/") 
+
+                with open(local_filepath, 'rb') as f:
+                    swift_conn.put_object(container_name, swift_object_name, contents=f)
+                logger.info(f"Uploaded {local_filepath} to swift://{container_name}/{swift_object_name}")
+        logger.info(f"Successfully uploaded directory {local_directory} to swift://{container_name}/{destination_prefix}")
+        return True
+    except swiftclient.exceptions.ClientException as e:
+        logger.error(f"Swift upload error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error during Swift upload: {e}")
+        return False
 
 def main(args):
     logger.info(f"Fine-tuning run started with args: {args}")
@@ -133,7 +164,7 @@ def main(args):
     logger.info(f"Ensured output directory exists: {args.output_dir}")
 
     local_model_dir_for_sbert = None 
-    swift_conn = None
+    swift_conn = None 
 
     try: 
         with mlflow.start_run(run_name=args.mlflow_run_name) as run:
@@ -141,23 +172,29 @@ def main(args):
             logger.info(f"MLflow run ID: {run_id}")
             mlflow.log_params({k: str(v) if v is not None else "" for k, v in vars(args).items()})
 
+            if args.model_name_or_path.startswith("swift://") or args.upload_model_to_swift:
+                swift_conn = get_swift_connection()
+                if not swift_conn:
+                    if args.model_name_or_path.startswith("swift://"):
+                        raise RuntimeError("Failed to connect to OpenStack Swift for model download.")
+                    else:
+                        logger.warning("Failed to connect to OpenStack Swift. Model upload will be skipped.")
+
             if args.model_name_or_path.startswith("swift://"):
+                if not swift_conn: 
+                     raise RuntimeError("Swift connection required for model download but not established.")
                 swift_full_path = args.model_name_or_path[8:]
                 try:
                     swift_container_name, swift_model_prefix = swift_full_path.split('/', 1)
                 except ValueError:
                     raise ValueError(f"Invalid Swift model path: {args.model_name_or_path}. Expected swift://container/prefix.")
 
-                swift_conn = get_swift_connection()
-                if not swift_conn:
-                    raise RuntimeError("Failed to connect to OpenStack Swift for model download.")
-
                 os.makedirs(args.local_model_temp_dir, exist_ok=True)
                 local_model_dir_for_sbert = setup_local_model_from_swift_native(
                     swift_conn, swift_container_name, swift_model_prefix, args.local_model_temp_dir
                 )
                 if not local_model_dir_for_sbert:
-                    raise RuntimeError("Failed to download model from Swift.")
+                    raise RuntimeError("Failed to download base model from Swift.")
                 model_to_load = local_model_dir_for_sbert
                 mlflow.log_param("model_source_swift_path", args.model_name_or_path)
             else: 
@@ -228,19 +265,36 @@ def main(args):
                       evaluator=evaluator,
                       epochs=args.num_epochs,
                       warmup_steps=args.warmup_steps,
-                      output_path=model_output_path_sbert,
+                      output_path=model_output_path_sbert, 
                       show_progress_bar=True,
                       evaluation_steps=args.evaluation_steps if dev_samples and args.evaluation_steps > 0 else 0,
                       checkpoint_path=os.path.join(args.output_dir, f"checkpoints_{run_id}"),
                       checkpoint_save_steps=args.evaluation_steps * 2 if dev_samples and args.evaluation_steps > 0 else 1000000,
                       checkpoint_save_total_limit=2)
 
-            logger.info("Fine-tuning completed.")
-            # ******** THIS IS THE CORRECTED LINE ********
-            mlflow.sentence_transformers.log_model(sentence_transformers_model=model, artifact_path="legal-bert-finetuned-triplet")
-            # *******************************************
-            logger.info("Trained (fine-tuned) model logged to MLflow.")
+            logger.info(f"Fine-tuning completed. Model saved by SBERT to: {model_output_path_sbert}")
+            
+            mlflow.sentence_transformers.log_model(model=model, artifact_path="legal-bert-finetuned-mlflow")
+            logger.info("Trained (fine-tuned) model logged to MLflow artifacts.")
 
+            if args.upload_model_to_swift and swift_conn:
+                if os.path.isdir(model_output_path_sbert):
+                    target_swift_prefix = args.swift_upload_prefix or f"models/legal-bert-finetuned/{run_id}"
+                    upload_success = upload_directory_to_swift(
+                        swift_conn,
+                        model_output_path_sbert, 
+                        args.swift_container_name,
+                        target_swift_prefix
+                    )
+                    if upload_success:
+                        mlflow.log_param("finetuned_model_swift_path", f"swift://{args.swift_container_name}/{target_swift_prefix}")
+                        logger.info(f"Fine-tuned model also uploaded to Swift: swift://{args.swift_container_name}/{target_swift_prefix}")
+                    else:
+                        logger.error("Failed to upload fine-tuned model to Swift.")
+                else:
+                    logger.warning(f"SBERT output path {model_output_path_sbert} not found. Skipping Swift upload.")
+            elif args.upload_model_to_swift and not swift_conn:
+                 logger.warning("Swift upload requested but connection is not available. Skipping Swift upload.")
 
             if evaluator:
                 eval_csv_path = os.path.join(model_output_path_sbert, "eval/triplet_evaluation_finetuned_legal_dev_results.csv")
@@ -255,7 +309,7 @@ def main(args):
             logger.info(f"MLflow run {run_id} finished.")
     finally: 
         if local_model_dir_for_sbert and os.path.exists(local_model_dir_for_sbert):
-            logger.info(f"Cleaning up temporary model directory: {local_model_dir_for_sbert}")
+            logger.info(f"Cleaning up temporary base model directory: {local_model_dir_for_sbert}")
             shutil.rmtree(local_model_dir_for_sbert)
 
 if __name__ == "__main__":
@@ -275,7 +329,10 @@ if __name__ == "__main__":
     parser.add_argument("--mlflow_tracking_uri", type=str, default=os.getenv("MLFLOW_TRACKING_URI"), help="MLflow server URI.")
     parser.add_argument("--mlflow_experiment_name", type=str, default="LegalAI-Swift-Sklearn-In-Docker", help="MLflow experiment name.")
     parser.add_argument("--mlflow_run_name", type=str, default=f"sbert-swift-docker-{datetime.now().strftime('%Y%m%d-%H%M%S')}", help="MLflow run name.")
-    
+    parser.add_argument("--upload_model_to_swift", action='store_true', help="Upload the fine-tuned model to OpenStack Swift.")
+    parser.add_argument("--swift_container_name", type=str, default="object-store-persist-group36", help="Swift container name for uploading the fine-tuned model.")
+    parser.add_argument("--swift_upload_prefix", type=str, default=None, help="Prefix (folder path) in Swift container for the fine-tuned model. If None, defaults to 'models/legal-bert-finetuned/RUN_ID'.")
+
     args = parser.parse_args()
 
     if not (0.0 <= args.dev_split_ratio < 1.0):
