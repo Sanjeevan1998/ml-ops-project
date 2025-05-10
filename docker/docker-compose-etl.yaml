@@ -13,7 +13,9 @@ services:
     user: root
     volumes:
       - lexisraw:/data
-      - /home/cc/ml-ops-project/data-pipeline/scripts/:/data-pipeline/scripts/
+      - type: bind
+        source: /home/cc/ml-ops-project/data-pipeline/scripts/
+        target: /data-pipeline/scripts/
 
     working_dir: /data
     command:
