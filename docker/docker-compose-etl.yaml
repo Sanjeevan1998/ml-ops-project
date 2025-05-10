@@ -43,7 +43,7 @@ services:
     volumes:
       - lexisraw:/data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data
+    working_dir: /data/processed
     command:
       - bash
       - -c
@@ -54,6 +54,8 @@ services:
         python3 /data-pipeline/scripts/process_pdfs.py
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
+        echo "Listing contents of /data/processed after transform stage:"
+        ls -l /data/processed
 
   # Embedding Generation
   create-embeddings:
@@ -63,7 +65,7 @@ services:
     volumes:
       - lexisraw:/data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data
+    working_dir: /data/processed
     command:
       - bash
       - -c
@@ -73,6 +75,8 @@ services:
         pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/create_embeddings.py
         echo "✅ Embeddings generated."
+        echo "Listing contents of /data/processed after transform stage:"
+        ls -l /data/processed
 
   # Triplet Generation
   generate-triplets:
