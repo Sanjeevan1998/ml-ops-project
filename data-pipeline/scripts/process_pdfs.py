@@ -9,7 +9,13 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "processed_cases.csv")
 
 cases = []
-
+for filename in os.listdir(RAW_DIR):
+    # Sanitize the filename
+    clean_filename = re.sub(r"[^\w\s]", "", filename).replace(" ", "_").lower()
+    
+    # Now process the file as usual
+    full_path = os.path.join(RAW_DIR, filename)
+    print(f"Processing: {clean_filename}")
 print("📝 Processing PDF files...")
 
 for filename in os.listdir(RAW_DIR):
