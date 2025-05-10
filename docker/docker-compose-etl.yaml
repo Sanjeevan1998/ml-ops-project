@@ -1,0 +1,98 @@
+version: "3.8"
+
+name: LexisRaw
+
+volumes:
+  lexisraw:
+
+services:
+  # Data Extraction (Download and Unzip from NYU Box)
+  extract-data:
+    container_name: etl_extract_data
+    image: python:3.11
+    user: root
+    volumes:
+      - lexisraw:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "🗂️ Resetting dataset directory..."
+        rm -rf raw_pdfs
+        mkdir -p raw_pdfs
+        cd raw_pdfs
+
+        echo "🌐 Downloading dataset from NYU Box..."
+        curl -L https://nyu.box.com/s/aiirowrixydy10weqxg3mmzvxdweumyy -o LexisRaw.zip
+
+        echo "📦 Unzipping dataset..."
+        unzip -q LexisRaw.zip
+        rm -f LexisRaw.zip
+
+        echo "✅ Data extracted to /data/raw_pdfs/"
+        ls -lh /data/raw_pdfs/
+
+  # Embedding Generation
+  create-embeddings:
+    container_name: etl_create_embeddings
+    image: python:3.11
+    user: root
+    volumes:
+      - lexisraw:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "🔄 Generating embeddings..."
+        python3 /scripts/create_embeddings.py
+        echo "✅ Embeddings generated."
+
+  # Triplet Generation
+  generate-triplets:
+    container_name: etl_generate_triplets
+    image: python:3.11
+    user: root
+    volumes:
+      - lexisraw:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "🔄 Generating triplets..."
+        python3 /scripts/generate_triplets.py
+        echo "✅ Triplets generated."
+
+  # Data Upload
+  load-data:
+    container_name: etl_load_data
+    image: rclone/rclone:latest
+    volumes:
+      - lexisraw:/data
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "🚀 Uploading data to container $RCLONE_CONTAINER..."
+        
+        rclone copy /data/raw_pdfs chi_uc:$RCLONE_CONTAINER \
+        --progress \
+        --transfers=32 \
+        --checkers=16 \
+        --multi-thread-streams=4 \
+        --fast-list
+
+        echo "✅ Data uploaded to object store."
+        echo "Listing directories in container after load stage:"
+        rclone lsd chi_uc:$RCLONE_CONTAINER
