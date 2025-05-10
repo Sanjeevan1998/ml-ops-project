@@ -19,7 +19,7 @@ services:
     volumes:
       - lexisraw:/data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /_data
+    working_dir: /data
     command:
       - bash
       - -c
@@ -38,7 +38,7 @@ services:
         rm -f LexisRaw.zip
 
         echo "✅ Data extracted to /data/raw_pdfs/"
-        ls -lh /_data/raw_pdfs
+        ls -lh /data/raw_pdfs
 
   # Process Cases and Generate Metadata (Combined)
   processcases-and-createmetadata:
@@ -48,7 +48,7 @@ services:
     volumes:
       - lexisraw:/_data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /_data/processed
+    working_dir: /data/processed
     command:
       - bash
       - -c
@@ -60,7 +60,7 @@ services:
         python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
         echo "Listing contents of /data/processed after transform stage:"
-        ls -l /_data/processed
+        ls -l /data/processed
 
   # Embedding Generation
   create-embeddings:
