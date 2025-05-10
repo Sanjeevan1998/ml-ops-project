@@ -4,9 +4,9 @@ import pandas as pd
 import random
 
 # File paths
-embedding_file = "/data-pipeline/embeddings/legal_embeddings.npy"
-metadata_file = "/data-pipeline/embeddings/metadata.csv"
-triplet_output_file = "/data-pipeline/scripts/triplets.csv"
+embedding_file = "/data/embeddings/legal_embeddings.npy"
+metadata_file = "/data/embeddings/metadata.csv"
+triplet_output_file = "/data/scripts/triplets.csv"
 
 # Load embeddings and metadata
 embeddings = np.load(embedding_file)
