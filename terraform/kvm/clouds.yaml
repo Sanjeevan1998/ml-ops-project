@@ -2,8 +2,8 @@ clouds:
   openstack:
     auth:
       auth_url: https://kvm.tacc.chameleoncloud.org:5000
-      application_credential_id: "APPLICATION_CREDENTIAL_ID"
-      application_credential_secret: "APPLICATION_CREDENTIAL_SECRET"   
+      application_credential_id: "f78d866db14b43ad85b0133a5464b796"
+      application_credential_secret: "cc7c0mJKqnvpU6jcXKe-B3wLzq9g4MllXrDbUNYEmXurdlyORSD0PSf_kHJd1vKH1m_6iwnNy6f7PudzfJSPJA"   
     region_name: "KVM@TACC"
     interface: "public"
     identity_api_version: 3
