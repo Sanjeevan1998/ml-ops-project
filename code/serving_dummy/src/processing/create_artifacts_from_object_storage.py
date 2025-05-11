@@ -25,7 +25,7 @@ LOCAL_OUTPUT_BASE_DIR_NAME = 'generated_artifacts_from_os'
 OUTPUT_ARTIFACT_SUBDIR_NAME = 'faissIndex/v1'
 OUTPUT_ARTIFACT_DIR_ON_VM = os.path.join(PROJECT_ROOT_DIR, LOCAL_OUTPUT_BASE_DIR_NAME, OUTPUT_ARTIFACT_SUBDIR_NAME)
 
-MAX_FILES_TO_PROCESS = 10  # For testing; change to a larger number or None for full processing
+MAX_FILES_TO_PROCESS = 2500  # For testing; change to a larger number or None for full processing
 
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 50
