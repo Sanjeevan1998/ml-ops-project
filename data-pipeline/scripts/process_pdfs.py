@@ -5,12 +5,16 @@ import csv
 import fitz  # PyMuPDF
 import openai
 from tqdm import tqdm
+from dotenv import load_dotenv
 
 # Configuration
 PDF_DIR = "/data"
 OUTPUT_DIR = "/data/metadata"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-OPENAI_API_KEY = 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
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "metadata.csv")
 
 openai.api_key = OPENAI_API_KEY
