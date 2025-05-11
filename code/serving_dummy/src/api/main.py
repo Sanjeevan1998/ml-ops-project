@@ -27,7 +27,7 @@ from transformers import AutoTokenizer
 
 
 #MODEL_TYPE_TO_LOAD = os.environ.get("MODEL_TYPE_TO_LOAD", "PYTORCH").upper()
-# MODEL_TYPE_TO_LOAD = "PYTORCH" # For PyTorch baseline
+#MODEL_TYPE_TO_LOAD = "PYTORCH" # For PyTorch baseline
 MODEL_TYPE_TO_LOAD = "ONNX"    # For ONNX model
 
 

@@ -26,7 +26,7 @@ services:
       #MODEL_TYPE_TO_LOAD: "PYTORCH"
       MODEL_TYPE_TO_LOAD: "ONNX"
       #ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx" # 
-      ONNX_MODEL_PATH: "/app/optimized_models_host_root/legal_bert_finetuned_onnx_int8_quantized"
+      ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized"
 
       EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
       FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"
