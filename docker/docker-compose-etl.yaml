@@ -51,7 +51,7 @@ services:
         echo "📝 Extracting metadata and processing cases..."
         pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/process_pdfs.py
-        python3 /data-pipeline/scripts/create_metadata.py
+        #python3 /data-pipeline/scripts/create_metadata.py
         echo "✅ Processed cases and metadata saved."
         echo "Listing contents of /data/processed after transform stage:"
         ls -l /data/processed
