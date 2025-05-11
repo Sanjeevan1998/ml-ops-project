@@ -32,17 +32,17 @@ FEEDBACK_COUNTER = Counter(
 )
 
 # --- Configuration ---
-INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/real_index.faiss")
-MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/index/real_map.pkl")
-METADATA_PATH = os.environ.get("METADATA_PATH", "/app/metadata/real_metadata.pkl")
-PDF_DATA_DIR = "/app/pdf_data" 
+# INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/index/real_index.faiss")
+# MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/index/real_map.pkl")
+# METADATA_PATH = os.environ.get("METADATA_PATH", "/app/metadata/real_metadata.pkl")
+# PDF_DATA_DIR = "/app/pdf_data" 
 
 
 #Use the below lines and comment the one above when we have actual faiss
-#INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss")
-#MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl")
-#METADATA_PATH = os.environ.get("METADATA_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl")
-#PDF_DATA_DIR = os.environ.get("PDF_DATA_DIR", "/app/mounted_bucket_storage/LexisRaw")
+INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss")
+MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl")
+METADATA_PATH = os.environ.get("METADATA_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl")
+PDF_DATA_DIR = os.environ.get("PDF_DATA_DIR", "/app/mounted_bucket_storage/LexisRaw")
 
 
 
