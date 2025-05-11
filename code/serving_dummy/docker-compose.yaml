@@ -1,30 +1,39 @@
-version: '3.8'
+version: '3.8' # You can remove this line if you want, the warning is just informational
 
 services:
   legal-search-api:
-    build: . 
+    build: .
     container_name: legal-search-api-dummy
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - ./index:/app/index:ro 
+      - ./index:/app/index:ro
       - ./metadata:/app/metadata:ro
-      - ./real_pdfs:/app/pdf_data:ro
+      - ./real_pdfs:/app/pdf_data:ro # Note: Your Dockerfile ENV PDF_DATA_DIR points to object storage
+                                     # This local mount might be overridden or unused if the ENV var is prioritized
+                                     # by main.py. Ensure consistency or remove if not needed.
       - ./hf_cache:/root/.cache/huggingface
       - ./feedback_data:/app/feedback_data
       - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro
-      - /tmp/optimized_models:/app/optimized_models_local:ro 
+      - /tmp/optimized_models:/app/optimized_models_local:ro
 
     environment:
-      MODEL_DEVICE_PREFERENCE: "auto" 
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1 
-              capabilities: [gpu]
+      # For a CPU-only VM, "auto" will correctly fall back to CPU in your main.py.
+      # Explicitly setting to "cpu" is also fine and very clear.
+      MODEL_DEVICE_PREFERENCE: "auto" # or "cpu"
+      # Ensure your other ENV VARS from the Dockerfile are either set here
+      # or you are relying on the Dockerfile defaults.
+      # For clarity, you can mirror them:
+      MODEL_TYPE_TO_LOAD: "ONNX" # As per your Dockerfile default
+      ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized" # As per your Dockerfile default
+      EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
+      FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"
+      FAISS_MAP_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl"
+      METADATA_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl"
+      PDF_DATA_DIR: "/app/mounted_bucket_storage/LexisRaw"
+
+
     networks:
       - monitoring_net
 
