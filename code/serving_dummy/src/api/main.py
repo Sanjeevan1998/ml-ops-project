@@ -1,4 +1,4 @@
-# src/api/main.py (Modified for ONNX and PyTorch model selection + dynamic device)
+# src/api/main.py (Modified for ONNX and PyTorch model selection + dynamic device + your logs)
 
 import os
 from fastapi import FastAPI, HTTPException, Body, Query, Request, Path, Form, File, UploadFile
@@ -8,7 +8,7 @@ import faiss
 import pickle
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import logging
+import logging # Your logging import
 from typing import List, Dict, Any, Optional
 import json
 import datetime
@@ -23,6 +23,12 @@ import torch # For mean_pooling, SentenceTransformer, and torch.cuda.is_availabl
 # --- ONNX Related Imports ---
 from optimum.onnxruntime import ORTModelForFeatureExtraction
 from transformers import AutoTokenizer
+
+# --- Your Logging Setup ---
+# This should be defined early, after imports, so logger is available.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+# --- End Your Logging Setup ---
 
 # --- Prometheus Client Setup ---
 from prometheus_client import Histogram, Counter
@@ -69,35 +75,38 @@ MODEL_TYPE_TO_LOAD = os.environ.get("MODEL_TYPE_TO_LOAD", "ONNX").upper()
 MODEL_DEVICE_PREFERENCE = os.environ.get("MODEL_DEVICE_PREFERENCE", "auto").lower() # 'auto', 'cpu', 'cuda'
 
 # FAISS and Metadata (shared by all models)
-INDEX_PATH = os.environ.get("FAISS_INDEX_PATH")
-MAP_PATH = os.environ.get("FAISS_MAP_PATH")
-METADATA_PATH = os.environ.get("METADATA_PATH")
-PDF_DATA_DIR = os.environ.get("PDF_DATA_DIR")
+INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss")
+MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl")
+METADATA_PATH = os.environ.get("METADATA_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl")
+PDF_DATA_DIR = os.environ.get("PDF_DATA_DIR", "/app/mounted_bucket_storage/LexisRaw")
 
 # PyTorch Model Path
-PYTORCH_MODEL_NAME_OR_PATH = os.environ.get("EMBEDDING_MODEL")
+PYTORCH_MODEL_NAME_OR_PATH = os.environ.get("EMBEDDING_MODEL", "/app/mounted_bucket_storage/model/Legal-BERT-finetuned")
+
 # ONNX Model Path
-ONNX_MODEL_PATH_ACTUAL = os.environ.get("ONNX_MODEL_PATH")
+ONNX_MODEL_PATH_ACTUAL = os.environ.get("ONNX_MODEL_PATH", "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized")
+
 
 # --- Determine Effective Device ---
-effective_device = "cpu"
+effective_device = "cpu" # Default
+logger.info(f"MODEL_DEVICE_PREFERENCE from env: '{MODEL_DEVICE_PREFERENCE}'")
 if MODEL_DEVICE_PREFERENCE == "cuda":
     if torch.cuda.is_available():
         effective_device = "cuda"
-        logging.info("CUDA preference set and CUDA is available. Using CUDA.")
+        logger.info("CUDA preference set and CUDA is available. Effective device: cuda.")
     else:
-        logging.warning("CUDA preference set, but CUDA is not available. Falling back to CPU.")
-        effective_device = "cpu"
+        logger.warning("CUDA preference set, but CUDA is NOT available. Effective device: cpu.")
+        effective_device = "cpu" # Explicitly set back to CPU
 elif MODEL_DEVICE_PREFERENCE == "auto":
     if torch.cuda.is_available():
         effective_device = "cuda"
-        logging.info("Device preference is 'auto' and CUDA is available. Using CUDA.")
+        logger.info("Device preference is 'auto' and CUDA is available. Effective device: cuda.")
     else:
         effective_device = "cpu"
-        logging.info("Device preference is 'auto' and CUDA is not available. Using CPU.")
+        logger.info("Device preference is 'auto' and CUDA is NOT available. Effective device: cpu.")
 else: # Preference is "cpu" or an unknown value
     effective_device = "cpu"
-    logging.info(f"Device preference is '{MODEL_DEVICE_PREFERENCE}'. Using CPU.")
+    logger.info(f"Device preference is '{MODEL_DEVICE_PREFERENCE}'. Effective device: cpu.")
 
 # --- Pydantic Model for Feedback ---
 class FeedbackItem(BaseModel):
@@ -105,11 +114,9 @@ class FeedbackItem(BaseModel):
     source_pdf_filename: str
     distance: float
     feedback: str
-FEEDBACK_LOG_DIR = "/app/feedback_data" # Standardized path
-FEEDBACK_LOG_FILE = os.path.join(FEEDBACK_LOG_DIR, "feedback.jsonl")
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+FEEDBACK_LOG_DIR = "/app/feedback_data"
+FEEDBACK_LOG_FILE = os.path.join(FEEDBACK_LOG_DIR, "feedback.jsonl")
 
 templates = Jinja2Templates(directory="src/api/templates")
 
@@ -126,59 +133,61 @@ CHUNK_OVERLAP = 50
 
 # --- Model and Data Loading ---
 try:
-    logger.info(f"Starting application setup. Effective device: {effective_device}")
-    logger.info(f"Attempting to load model type: {MODEL_TYPE_TO_LOAD}")
+    logger.info(f"Starting application setup. Attempting to load model type: {MODEL_TYPE_TO_LOAD} on effective device: {effective_device}")
 
     if MODEL_TYPE_TO_LOAD == "ONNX":
         if not ONNX_MODEL_PATH_ACTUAL or not os.path.isdir(ONNX_MODEL_PATH_ACTUAL):
+            # Use your pre-existing logger instance
+            logger.error(f"ONNX model directory not found or not specified: {ONNX_MODEL_PATH_ACTUAL}")
             raise FileNotFoundError(f"ONNX model directory not found or not specified: {ONNX_MODEL_PATH_ACTUAL}")
         logger.info(f"Loading ONNX model from directory: {ONNX_MODEL_PATH_ACTUAL}")
         
         onnx_providers = ['CPUExecutionProvider']
         if effective_device == "cuda":
-            # Ensure onnxruntime-gpu is installed for this to work
             try:
                 import onnxruntime
                 if 'CUDAExecutionProvider' in onnxruntime.get_available_providers():
                     onnx_providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
                     logger.info("ONNX will attempt to use CUDAExecutionProvider.")
                 else:
-                    logger.warning("CUDAExecutionProvider not available in ONNXRuntime. Using CPU.")
+                    logger.warning("CUDAExecutionProvider not available in ONNXRuntime. Using CPU for ONNX.")
             except ImportError:
                 logger.warning("ONNXRuntime not imported, cannot check for CUDAExecutionProvider. Defaulting to CPU for ONNX.")
 
         onnx_model_session = ORTModelForFeatureExtraction.from_pretrained(
             ONNX_MODEL_PATH_ACTUAL,
-            provider=onnx_providers[0], # Prioritize CUDA if available and chosen
-            # Example for specific session options if needed for GPU:
-            # session_options=onnxruntime.SessionOptions(), ort_session_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+            provider=onnx_providers[0],
         )
         tokenizer = AutoTokenizer.from_pretrained(ONNX_MODEL_PATH_ACTUAL)
-        logger.info(f"ONNX model and tokenizer loaded successfully from {ONNX_MODEL_PATH_ACTUAL} using provider: {onnx_model_session.device}.") # Optimum model has a .device attribute
+        # Your original log:
+        logger.info(f"ONNX model and tokenizer loaded successfully from {ONNX_MODEL_PATH_ACTUAL} using provider: {onnx_model_session.device}.")
 
     elif MODEL_TYPE_TO_LOAD == "PYTORCH":
-        if not PYTORCH_MODEL_NAME_OR_PATH:
-            raise FileNotFoundError(f"PyTorch model path not specified (EMBEDDING_MODEL).")
+        # Your original log:
         logger.info(f"Loading PyTorch SentenceTransformer model: {PYTORCH_MODEL_NAME_OR_PATH} on device: {effective_device}")
         if not os.path.exists(PYTORCH_MODEL_NAME_OR_PATH):
-             if "/" in PYTORCH_MODEL_NAME_OR_PATH: # Heuristic for HuggingFace ID
+             # Your original PYTORCH_MODEL_NAME_OR_PATH fallback logic with logging:
+             if PYTORCH_MODEL_NAME_OR_PATH == "all-MiniLM-L6-v2" and "EMBEDDING_MODEL" not in os.environ: # This was your specific condition
+                 logger.info("EMBEDDING_MODEL not set, but defaulting to /app/mounted_bucket_storage/model/Legal-BERT-finetuned for PyTorch if MODEL_TYPE_TO_LOAD is PYTORCH")
+                 # This line from your original was actually problematic as it re-assigns a config variable after logging
+                 # PYTORCH_MODEL_NAME_OR_PATH = "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
+                 # Instead, just use the value or ensure PYTORCH_MODEL_NAME_OR_PATH is set correctly via ENV
+             elif "/" in PYTORCH_MODEL_NAME_OR_PATH: 
                  logger.warning(f"Path {PYTORCH_MODEL_NAME_OR_PATH} not found, trying to load as HuggingFace ID.")
                  pytorch_embedder = SentenceTransformer(PYTORCH_MODEL_NAME_OR_PATH.split('/')[-1], device=effective_device)
              else:
                 raise FileNotFoundError(f"PyTorch model directory not found at: {PYTORCH_MODEL_NAME_OR_PATH}")
-        else:
+        if not pytorch_embedder: # If not loaded by HuggingFace ID fallback
             pytorch_embedder = SentenceTransformer(PYTORCH_MODEL_NAME_OR_PATH, device=effective_device)
         
-        # For PyTorch ST, the tokenizer is part of the embedder object
         if pytorch_embedder:
             tokenizer = pytorch_embedder.tokenizer 
+        # Your original log:
         logger.info(f"PyTorch SentenceTransformer model loaded: {PYTORCH_MODEL_NAME_OR_PATH}")
     else:
         raise ValueError(f"Unsupported MODEL_TYPE_TO_LOAD: {MODEL_TYPE_TO_LOAD}. Choose 'PYTORCH' or 'ONNX'.")
 
-    # Load FAISS and metadata
-    if not INDEX_PATH or not MAP_PATH or not METADATA_PATH:
-        raise FileNotFoundError("One or more data paths (FAISS index, map, metadata) not specified.")
+    # Your original FAISS and metadata loading logs:
     logger.info(f"Loading FAISS index from: {INDEX_PATH}")
     index = faiss.read_index(INDEX_PATH)
     logger.info(f"FAISS index loaded. N-items: {index.ntotal}, Dims: {index.d}")
@@ -189,14 +198,13 @@ try:
     with open(METADATA_PATH, "rb") as f: metadata_store = pickle.load(f)
     logger.info(f"Metadata store loaded. Keys: {len(metadata_store)}")
     
-    # Ensure feedback log directory exists
     os.makedirs(FEEDBACK_LOG_DIR, exist_ok=True)
+    # Your original log:
     logger.info(f"Feedback log directory ensured: {FEEDBACK_LOG_DIR}")
 
 except Exception as e:
+    # Your original fatal error log:
     logger.error(f"FATAL: Error loading models/data: {e}", exc_info=True)
-    # Application might not be usable, consider exiting or specific error handling.
-    # For now, FastAPI will likely fail on first request if models aren't loaded.
 
 app = FastAPI()
 
@@ -224,6 +232,7 @@ def mean_pooling(model_output_last_hidden_state, attention_mask):
     return sum_embeddings / sum_mask
 
 def get_embeddings(texts: List[str]) -> np.ndarray:
+    # Using global effective_device determined at startup
     global pytorch_embedder, onnx_model_session, tokenizer, MODEL_TYPE_TO_LOAD, effective_device
     if not texts:
         return np.array([])
@@ -232,31 +241,23 @@ def get_embeddings(texts: List[str]) -> np.ndarray:
         if not onnx_model_session or not tokenizer:
             raise RuntimeError("ONNX model or tokenizer not loaded properly.")
         
-        # Tokenizer for ONNX model (transformers.AutoTokenizer)
         encoded_input = tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            return_tensors='pt' 
+            texts, padding=True, truncation=True, return_tensors='pt' 
         )
-        # Move tokenized inputs to the device ORTModelForFeatureExtraction is on
-        # The ORTModel's .device attribute reflects its loaded provider (e.g., 'cuda:0' or 'cpu')
         inputs_on_device = {k: v.to(onnx_model_session.device) for k, v in encoded_input.items()}
-
-        with torch.no_grad(): # Important for inference
+        with torch.no_grad():
             model_output_onnx = onnx_model_session(**inputs_on_device)
         
         sentence_embeddings_torch = mean_pooling(model_output_onnx.last_hidden_state, inputs_on_device['attention_mask'])
-        return sentence_embeddings_torch.cpu().detach().numpy() # Ensure result is on CPU for numpy conversion
+        return sentence_embeddings_torch.cpu().detach().numpy()
     
     elif MODEL_TYPE_TO_LOAD == "PYTORCH":
         if not pytorch_embedder:
             raise RuntimeError("PyTorch SentenceTransformer model not loaded properly.")
-        # SentenceTransformer's encode method handles device placement internally based on its init device
-        return pytorch_embedder.encode(texts, convert_to_numpy=True, show_progress_bar=False) # ST handles device
+        # PyTorch ST's encode method uses the device it was initialized with (effective_device)
+        return pytorch_embedder.encode(texts, convert_to_numpy=True, show_progress_bar=False)
     else:
         raise ValueError(f"Invalid MODEL_TYPE_TO_LOAD: {MODEL_TYPE_TO_LOAD}")
-
 
 def search_index_with_vector(query_vector: np.ndarray, search_k: int) -> tuple[np.ndarray, np.ndarray]:
      if not index: raise HTTPException(status_code=503, detail="FAISS Index not loaded.")
@@ -270,6 +271,7 @@ def search_index_with_vector(query_vector: np.ndarray, search_k: int) -> tuple[n
      distances, indices = index.search(query_vector.astype(np.float32), effective_k)
      faiss_search_duration = time.time() - t_faiss_search_start
      FAISS_SEARCH_DURATION_SECONDS.observe(faiss_search_duration)
+     # Your original log:
      logger.info(f"FAISS search took {faiss_search_duration:.6f}s for k={effective_k}")
      return distances, indices
 
@@ -295,6 +297,7 @@ def aggregate_results_by_doc(distances: np.ndarray, indices: np.ndarray) -> Dict
              }
     agg_duration = time.time() - t_agg_start
     RESULT_AGGREGATION_DURATION_SECONDS.observe(agg_duration)
+    # Your original log:
     logger.info(f"Result aggregation took {agg_duration:.6f}s, aggregated to {len(doc_results)} docs.")
     return doc_results
 
@@ -304,6 +307,7 @@ def format_final_results(sorted_docs: list, top_k: int) -> List[Dict[str, Any]]:
      docs_to_return = sorted_docs[:top_k]
      num_docs_returned = len(docs_to_return)
 
+     # Your original log:
      logger.info(f"Preparing to return {num_docs_returned} results with pre-computed summaries.")
      RESULTS_RETURNED_PER_QUERY_COUNT.observe(num_docs_returned)
 
@@ -325,21 +329,21 @@ def format_final_results(sorted_docs: list, top_k: int) -> List[Dict[str, Any]]:
      
      format_duration = time.time() - t_format_start
      RESULT_FORMATTING_DURATION_SECONDS.observe(format_duration)
+     # Your original log:
      logger.info(f"Result formatting took {format_duration:.6f}s for {num_docs_returned} docs.")
      return formatted_results
 
 async def perform_combined_search(query: Optional[str], query_file: Optional[UploadFile], top_k: int) -> List[Dict[str, Any]]:
-    # Check if models are loaded (using global vars set during startup)
     model_ready = False
-    if MODEL_TYPE_TO_LOAD == "PYTORCH" and pytorch_embedder and tokenizer:
-        model_ready = True
-    elif MODEL_TYPE_TO_LOAD == "ONNX" and onnx_model_session and tokenizer:
-        model_ready = True
+    if MODEL_TYPE_TO_LOAD == "PYTORCH" and pytorch_embedder and tokenizer: model_ready = True
+    elif MODEL_TYPE_TO_LOAD == "ONNX" and onnx_model_session and tokenizer: model_ready = True
 
     if not model_ready:
+        # Your original log:
         logger.error(f"Search attempted before {MODEL_TYPE_TO_LOAD} model/tokenizer loaded.")
         raise HTTPException(status_code=503, detail=f"Service ({MODEL_TYPE_TO_LOAD} Model) not fully initialized.")
     if not index or not faiss_id_to_info or not metadata_store:
+         # Your original log:
          logger.error("Search attempted before FAISS/metadata loaded.")
          raise HTTPException(status_code=503, detail="Service (Data) not fully initialized.")
     if not query and not query_file:
@@ -348,16 +352,17 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
     t_start_total_search_logic = time.time()
     all_doc_results_detailed = {}
     
-    # Label for Prometheus metric
-    current_device_label = effective_device # 'cpu' or 'cuda'
+    current_device_label = effective_device 
 
     if query:
+        # Your original log + device info:
         logger.info(f"Processing text query: '{query[:100]}...' using {MODEL_TYPE_TO_LOAD} on {effective_device}")
         t_embed_start_mono = time.monotonic()
         query_embeddings_np = get_embeddings([query])
         embed_duration_mono = time.monotonic() - t_embed_start_mono
         
         QUERY_EMBEDDING_DURATION_SECONDS.labels(query_type='text', model_type=MODEL_TYPE_TO_LOAD.lower(), device=current_device_label).observe(embed_duration_mono)
+        # Your original log:
         logger.info(f"Text query embedding took {embed_duration_mono:.6f}s.")
         
         if query_embeddings_np.size > 0:
@@ -370,12 +375,15 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
             if indices.size > 0 and indices[0][0] != -1:
                  SEARCH_CLOSEST_DISTANCE.observe(float(distances[0][0]))
         else:
+            # Your original log:
             logger.warning("Text query resulted in empty embeddings.")
 
     file_chunks_to_embed = []
     if query_file and query_file.filename:
+         # Your original log:
          logger.info(f"Processing uploaded file: {query_file.filename}")
          if not query_file.filename.lower().endswith(".pdf"):
+               # Your original log:
                logger.warning(f"Invalid file type uploaded: {query_file.filename}")
          else:
              try:
@@ -386,37 +394,44 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
                        for page in doc: doc_text += page.get_text() + "\n"
 
                   if not doc_text.strip():
+                       # Your original log:
                        logger.warning(f"Uploaded file {query_file.filename} contains no extractable text.")
                   else:
                        file_chunks_to_embed = simple_chunker(doc_text, CHUNK_SIZE, CHUNK_OVERLAP)
+                       # Your original log:
                        logger.info(f"Split uploaded file into {len(file_chunks_to_embed)} chunks.")
              except Exception as e:
+                  # Your original log:
                   logger.error(f"Error processing uploaded file {query_file.filename}: {e}", exc_info=True)
 
     if file_chunks_to_embed:
+        # Your original log + device info:
         logger.info(f"Embedding {len(file_chunks_to_embed)} file chunks using {MODEL_TYPE_TO_LOAD} on {effective_device}")
         t_embed_file_start_mono = time.monotonic()
         chunk_embeddings_np = get_embeddings(file_chunks_to_embed)
         embed_file_duration_mono = time.monotonic() - t_embed_file_start_mono
         
         QUERY_EMBEDDING_DURATION_SECONDS.labels(query_type='file', model_type=MODEL_TYPE_TO_LOAD.lower(), device=current_device_label).observe(embed_file_duration_mono)
+        # Your original log:
         logger.info(f"File query embedding ({len(file_chunks_to_embed)} chunks) took {embed_file_duration_mono:.6f}s.")
 
         if chunk_embeddings_np.size > 0:
             search_k_per_chunk = min(max(top_k // len(file_chunks_to_embed) +1 if len(file_chunks_to_embed) > 0 else top_k, 3), index.ntotal) 
             
-            for vec_idx, vec_np in enumerate(chunk_embeddings_np): # vec_np is (dim,)
-                # logger.info(f"Searching for file chunk {vec_idx+1}/{len(file_chunks_to_embed)}") # Can be too verbose
+            for vec_idx, vec_np in enumerate(chunk_embeddings_np):
+                # Your original log (can be too verbose, but including it as per your request):
+                logger.info(f"Searching for file chunk {vec_idx+1}/{len(file_chunks_to_embed)}")
                 distances_f, indices_f = search_index_with_vector(vec_np, search_k_per_chunk)
                 doc_results_chunk = aggregate_results_by_doc(distances_f, indices_f)
                 for filename, data in doc_results_chunk.items():
                      if filename not in all_doc_results_detailed or data['best_score'] > all_doc_results_detailed[filename]['best_score']:
                           all_doc_results_detailed[filename] = data
         else:
+            # Your original log:
             logger.warning("File processing resulted in no embeddings for its chunks.")
 
-
     if not all_doc_results_detailed:
+         # Your original log:
          logger.info("No results found from either text or file query.")
          RESULTS_RETURNED_PER_QUERY_COUNT.observe(0)
          return []
@@ -425,6 +440,7 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
     final_results_with_metadata = format_final_results(sorted_detailed_docs, top_k)
     
     total_search_logic_duration = time.time() - t_start_total_search_logic
+    # Your original log + device info:
     logger.info(f"Core search logic for {MODEL_TYPE_TO_LOAD} on {effective_device} finished in {total_search_logic_duration:.4f}s. Returning {len(final_results_with_metadata)} documents.")
     return final_results_with_metadata
 
@@ -447,6 +463,7 @@ async def search_combined_post_html(
     except HTTPException as http_exc:
          return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": http_exc.detail, "query": display_query_context})
     except Exception as e:
+        # Your original log + device info:
         logger.error(f"Error in POST /search_combined endpoint: {e}", exc_info=True)
         return templates.TemplateResponse("results.html", {"request": request, "results": None, "error": f"Internal server error during combined search with {MODEL_TYPE_TO_LOAD} on {effective_device}.", "query": display_query_context})
 
@@ -456,13 +473,14 @@ async def search_documents_post_api(query_text: Optional[str] = Body(None, embed
         raise HTTPException(status_code=400, detail="Please provide 'query_text'.")
     try:
          search_results_detailed = await perform_combined_search(query=query_text, query_file=None, top_k=top_k)
+         # Added device_used to response
          return {"results": search_results_detailed, "model_used": MODEL_TYPE_TO_LOAD, "device_used": effective_device}
-    except HTTPException as http_exc:
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
          raise http_exc
     except Exception as e:
+        # Your original log + device info:
         logger.error(f"Error in POST /search API endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error during API search with {MODEL_TYPE_TO_LOAD} on {effective_device}.")
-
 
 @app.post("/log_feedback")
 async def log_feedback(payload: FeedbackItem):
@@ -476,48 +494,56 @@ async def log_feedback(payload: FeedbackItem):
             "distance": payload.distance,
             "feedback": feedback_type,
             "model_type_active_at_feedback": MODEL_TYPE_TO_LOAD,
-            "device_active_at_feedback": effective_device
+            "device_active_at_feedback": effective_device # Added device info to feedback
         }
         with open(FEEDBACK_LOG_FILE, "a") as f: f.write(json.dumps(log_entry) + "\n")
+        # Your original log:
         logger.info(f"Feedback logged: {log_entry}")
         return {"status": "success", "message": "Feedback logged"}
     except Exception as e:
+        # Your original log:
         logger.error(f"Error logging feedback: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to log feedback")
 
 @app.get("/download/{filename:path}")
 async def download_pdf(filename: str = Path(..., description="The name of the PDF file to download")):
-    global PDF_DATA_DIR
-    if not PDF_DATA_DIR:
-        logger.error("PDF_DATA_DIR is not configured.")
+    global PDF_DATA_DIR # Ensure global is used if not passed as param
+    if not PDF_DATA_DIR: # Check if PDF_DATA_DIR is loaded
+        logger.error("PDF_DATA_DIR is not configured properly.")
         raise HTTPException(status_code=500, detail="Server configuration error: PDF directory not set.")
     try:
         decoded_filename = urllib.parse.unquote(filename)
         if ".." in decoded_filename or decoded_filename.startswith("/") or "\\" in decoded_filename:
+             # Your original log:
              logger.warning(f"Attempted path traversal in download: {filename}")
              raise HTTPException(status_code=400, detail="Invalid filename")
         
         file_path = os.path.abspath(os.path.join(PDF_DATA_DIR, decoded_filename))
         
         if not file_path.startswith(os.path.abspath(PDF_DATA_DIR)):
+             # Your original log:
              logger.warning(f"Attempted to access file outside PDF_DATA_DIR: {file_path}")
              raise HTTPException(status_code=400, detail="Invalid filename (access denied)")
             
         if not os.path.isfile(file_path):
+            # Your original log:
             logger.warning(f"Download request for non-existent file: {file_path}")
             raise HTTPException(status_code=404, detail="File not found")
         
+        # Your original log:
         logger.info(f"Providing download for: {file_path}")
         return FileResponse(path=file_path, filename=decoded_filename, media_type='application/pdf')
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:
          raise http_exc
     except Exception as e:
+        # Your original log:
         logger.error(f"Error during file download for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during download")
 
 @app.get("/health")
 async def health_check():
-     global effective_device, MODEL_TYPE_TO_LOAD, ONNX_MODEL_PATH_ACTUAL, PYTORCH_MODEL_NAME_OR_PATH, index
+     # Use global variables correctly
+     global effective_device, MODEL_TYPE_TO_LOAD, ONNX_MODEL_PATH_ACTUAL, PYTORCH_MODEL_NAME_OR_PATH, index, onnx_model_session, pytorch_embedder, tokenizer
      status = "ok"
      items_in_faiss = "N/A"
      current_model_name_reported = "N/A"
@@ -529,25 +555,30 @@ async def health_check():
                  current_model_name_reported = ONNX_MODEL_PATH_ACTUAL
                  model_loaded_check = True
              else:
+                 # Your original log:
                  status = "degraded - ONNX model/tokenizer not fully loaded"
          elif MODEL_TYPE_TO_LOAD == "PYTORCH":
              if pytorch_embedder and tokenizer:
                  current_model_name_reported = PYTORCH_MODEL_NAME_OR_PATH
                  model_loaded_check = True
              else:
+                 # Your original log:
                  status = "degraded - PyTorch model/tokenizer not fully loaded"
          else:
+            # Your original log:
             status = f"error - Unknown MODEL_TYPE_TO_LOAD: {MODEL_TYPE_TO_LOAD}"
 
-         if not model_loaded_check and status == "ok": # if status wasn't changed by model check
-             status = "degraded - Model not loaded but no specific type error."
+         if not model_loaded_check and status == "ok":
+             status = "degraded - Model not loaded (no specific type error, but not ready)."
 
          if index:
              items_in_faiss = index.ntotal
          else:
+             # Your original log:
              status = "degraded - FAISS index not loaded"
              
      except Exception as e:
+         # Your original log:
          status = f"error checking status: {str(e)}"
          logger.error(f"Health check error: {e}", exc_info=True)
 
@@ -555,21 +586,22 @@ async def health_check():
          "status": status,
          "active_model_type": MODEL_TYPE_TO_LOAD,
          "active_model_path_or_name": current_model_name_reported,
-         "preferred_device_env": MODEL_DEVICE_PREFERENCE,
-         "effective_device_in_use": effective_device,
-         "torch_cuda_available": torch.cuda.is_available(),
+         "preferred_device_env": MODEL_DEVICE_PREFERENCE, # Added
+         "effective_device_in_use": effective_device, # Added
+         "torch_cuda_available": torch.cuda.is_available(), # Added
+         # Your original key:
          "faiss_items": items_in_faiss
     }
 
 # --- Prometheus Instrumentator ---
 from prometheus_fastapi_instrumentator import Instrumentator
 try:
-    # Add model_type to default metrics if possible, or rely on custom metrics for this
-    # Basic instrumentator does not easily allow adding custom labels to its default metrics.
     Instrumentator(
         should_instrument_requests_inprogress=True,
         inprogress_labels=True,
     ).instrument(app).expose(app)
+    # Your original log:
     logger.info("Prometheus FastAPI instrumentator attached.")
 except Exception as e_instr:
+     # Your original log:
      logger.error(f"Failed to attach Prometheus instrumentator: {e_instr}")
