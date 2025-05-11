@@ -1,59 +1,85 @@
-import pdfplumber
+
 import os
-import pandas as pd
 import re
+import csv
+import fitz  # PyMuPDF
+import openai
+from tqdm import tqdm
 
-# Directories
-RAW_DIR = "/data"
-OUTPUT_DIR = "/data/processed/"
+# Configuration
+PDF_DIR = "/data"
+OUTPUT_DIR = "/data/metadata"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "processed_cases.csv")
+OPENAI_API_KEY = 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
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "metadata.csv")
 
-cases = []
+openai.api_key = OPENAI_API_KEY
 
-# Filename sanitization function
-def sanitize_filename(filename):
-    # Remove special characters and replace spaces with underscores
-    base_name, ext = os.path.splitext(filename)
-    sanitized_name = re.sub(r"[^\w\s]", "", base_name).replace(" ", "_").lower()
-    return f"{sanitized_name}{ext}"
+def extract_text_from_pdf(pdf_file):
+    """Extracts text from a single PDF file."""
+    with fitz.open(pdf_file) as doc:
+        text = ""
+        for page in doc:
+            text += page.get_text()
+    return text
 
-# Process each PDF file
-for filename in os.listdir(RAW_DIR):
-    if filename.lower().endswith(".pdf"):
-        # Sanitize the filename
-        sanitized_filename = sanitize_filename(filename)
-        
-        # Rename the file to avoid issues during processing
-        old_path = os.path.join(RAW_DIR, filename)
-        new_path = os.path.join(RAW_DIR, sanitized_filename)
-        if old_path != new_path:
-            print(f"Renaming: {old_path} -> {new_path}")
-            os.rename(old_path, new_path)
 
-        # Process the sanitized file
-        try:
-            with pdfplumber.open(new_path) as pdf:
-                full_text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+def generate_metadata(text):
+    """Generates structured metadata from raw case text using OpenAI GPT-4."""
+    prompt = f"""Extract the following metadata from this legal case document:
+    1. Case Name
+    2. Court
+    3. Date of Decision
+    4. Docket Number or Citation
+    5. Judges Involved
+    6. Summary of the Case
 
-            # Extract metadata
-            case_name = re.search(r"([A-Z][\w\s.,\-]+ v\. [A-Z][\w\s.,\-]+)", full_text)
-            court = re.search(r"(Supreme Court|Court of Appeals|District Court|Family Court|Circuit Court|Appellate Division)", full_text)
-            date = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}", full_text)
+    Document Text:
+    {text}
+    """
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1000,
+            temperature=0.2
+        )
+        metadata = response['choices'][0]['message']['content'].strip()
+        return metadata
+    except Exception as e:
+        print(f"Error generating metadata: {e}")
+        return None
 
-            case_name = case_name.group(0) if case_name else "Unknown Case"
-            court = court.group(0) if court else "Unknown Court"
-            date = date.group(0) if date else "Unknown Date"
 
-            # Add to the cases list
-            cases.append([case_name, court, date, full_text[:1000]])
-            print(f"✅ Processed: {sanitized_filename}")
+def process_all_pdfs(pdf_dir):
+    """Processes all PDF files in the specified directory."""
+    metadata_list = []
+    for pdf_file in tqdm(os.listdir(pdf_dir)):
+        if pdf_file.lower().endswith(".pdf"):
+            full_path = os.path.join(pdf_dir, pdf_file)
+            raw_text = extract_text_from_pdf(full_path)
+            metadata = generate_metadata(raw_text)
+            if metadata:
+                # Extract individual fields from metadata
+                metadata_list.append([pdf_file, metadata])
+    return metadata_list
 
-        except Exception as e:
-            print(f"❌ Error processing {sanitized_filename}: {e}")
 
-# Save to CSV
-df = pd.DataFrame(cases, columns=["case_name", "court", "date", "summary"])
-df.to_csv(OUTPUT_FILE, index=False)
+def save_metadata(metadata_list, output_file):
+    """Saves the extracted metadata to a CSV file."""
+    headers = ["File Name", "Metadata"]
+    with open(output_file, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(metadata_list)
 
-print(f"✅ Processed {len(df)} cases into {OUTPUT_FILE}")
+
+def main():
+    print("Processing PDF files...")
+    metadata_list = process_all_pdfs(PDF_DIR)
+    save_metadata(metadata_list, OUTPUT_FILE)
+    print(f"Metadata saved to {OUTPUT_FILE}")
+
+
+if __name__ == "__main__":
+    main()
