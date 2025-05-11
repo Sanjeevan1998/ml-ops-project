@@ -49,6 +49,7 @@ services:
       - |
         set -e
         echo "📝 Extracting metadata and processing cases..."
+        pip install --upgrade pip
         pip install -r /data-pipeline/requirements.txt
         python3 /data-pipeline/scripts/process_pdfs.py
         #python3 /data-pipeline/scripts/create_metadata.py
