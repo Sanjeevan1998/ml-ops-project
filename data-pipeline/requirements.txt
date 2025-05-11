@@ -1,9 +1,10 @@
-pdfplumber
+
 pandas
 numpy
 torch
 transformers
 PyMuPDF==1.24.3
-openai==0.28.1
+
 tqdm==4.66.1
-python-dotenv==1.0.0
+spacy==3.6.0
+
