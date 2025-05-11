@@ -17,7 +17,7 @@ ENV PYTHONUNBUFFERED=1 \
     FAISS_MAP_PATH="/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl" \
     METADATA_PATH="/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl" \
     PDF_DATA_DIR="/app/mounted_bucket_storage/LexisRaw" \
-    MODEL_TYPE_TO_LOAD="ONNX" # Default to ONNX, can be PYTORCH
+    MODEL_TYPE_TO_LOAD="ONNX"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
