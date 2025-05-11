@@ -26,22 +26,21 @@ services:
         cd raw_pdfs
 
         echo "🌐 Downloading dataset from NYU Box..."
-        curl -L https://nyu.box.com/shared/static/aiirowrixydy10weqxg3mmzvxdweumyy.zip -o LexisRaw.zip --verbose
+        curl -L https://nyu.box.com/shared/static/0dwwxxnic4datm4uoz9znu5htrokp2fq.zip -o LexisRaw.zip --verbose
 
         echo "📦 Unzipping dataset..."
         unzip -q LexisRaw.zip
         rm -f LexisRaw.zip
 
-        echo "✅ Data extracted to /data/raw_pdfs/"
-        ls -lh /data/raw_pdfs
+        echo "✅ Data extracted to /data"
+        ls -l /data
 
   # Process Cases and Generate Metadata (Combined)
   processcases-and-createmetadata:
     container_name: etl_process_cases
     image: python:3.11
-    user: root
     volumes:
-      - lexisraw:/_data
+      - lexisraw:/data
       - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
     working_dir: /data/processed
     command:
