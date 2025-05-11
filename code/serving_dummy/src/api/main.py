@@ -1,4 +1,4 @@
-# src/api/main.py (Revised for pre-computed summaries)
+# src/api/main.py (Granular Latency Breakdown with INFO level logging)
 from fastapi import FastAPI, HTTPException, Body, Query, Request, Path, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
@@ -30,17 +30,34 @@ FEEDBACK_COUNTER = Counter(
     "Total count of feedback submissions by type",
     ['feedback_type']
 )
-
-# --- REVISED Prometheus Metric for Results Returned ---
-# This metric will count how many documents (with their pre-computed summaries) are returned per query.
 RESULTS_RETURNED_PER_QUERY_COUNT = Histogram(
-    "results_returned_per_query_count", # Renamed for clarity
+    "results_returned_per_query_count",
     "Number of results (with pre-computed summaries) returned per query",
-    buckets=[0, 1, 2, 3, 4, 5, 7, 10, 15, float("inf")] # Same buckets as before, still relevant
+    buckets=[0, 1, 2, 3, 4, 5, 7, 10, 15, float("inf")]
 )
-# SUMMARIZATION_DURATION_SECONDS and INDIVIDUAL_DOC_SUMMARIZATION_SECONDS are removed.
-# --- END REVISED Prometheus Metrics ---
 
+# --- Granular Latency Prometheus Metrics ---
+QUERY_EMBEDDING_DURATION_SECONDS = Histogram(
+    "query_embedding_duration_seconds",
+    "Time taken to embed the input query (text or file chunks)",
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, float("inf")],
+    labelnames=['query_type']
+)
+FAISS_SEARCH_DURATION_SECONDS = Histogram(
+    "faiss_search_duration_seconds",
+    "Time taken for a single FAISS index.search operation",
+    buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, float("inf")]
+)
+RESULT_AGGREGATION_DURATION_SECONDS = Histogram(
+    "result_aggregation_duration_seconds",
+    "Time taken to aggregate chunk results into document results",
+    buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, float("inf")]
+)
+RESULT_FORMATTING_DURATION_SECONDS = Histogram(
+    "result_formatting_duration_seconds",
+    "Time taken by the format_final_results function",
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, float("inf")]
+)
 
 # --- Configuration ---
 INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss")
@@ -59,7 +76,7 @@ class FeedbackItem(BaseModel):
 FEEDBACK_LOG_DIR = "/app/feedback_data"
 FEEDBACK_LOG_FILE = os.path.join(FEEDBACK_LOG_DIR, "feedback.jsonl")
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO) # This remains INFO
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory="src/api/templates")
@@ -109,11 +126,21 @@ def search_index_with_vector(query_vector: np.ndarray, search_k: int) -> tuple[n
      if not index: raise HTTPException(status_code=503, detail="FAISS Index not loaded.")
      effective_k = min(search_k, index.ntotal)
      if effective_k <= 0: return (np.array([]), np.array([]))
-     return index.search(query_vector.astype(np.float32), effective_k)
+     
+     t_faiss_search_start = time.time()
+     distances, indices = index.search(query_vector.astype(np.float32), effective_k)
+     faiss_search_duration = time.time() - t_faiss_search_start
+     FAISS_SEARCH_DURATION_SECONDS.observe(faiss_search_duration)
+     logger.info(f"FAISS search took {faiss_search_duration:.6f}s for k={effective_k}") # Changed to INFO
+     return distances, indices
 
 def aggregate_results_by_doc(distances: np.ndarray, indices: np.ndarray) -> Dict[str, Dict[str, Any]]:
+    t_agg_start = time.time()
     doc_results = {}
-    if indices.size == 0: return doc_results
+    if indices.size == 0:
+        RESULT_AGGREGATION_DURATION_SECONDS.observe(time.time() - t_agg_start)
+        return doc_results
+        
     for i, idx in enumerate(indices[0]):
         if idx == -1 or idx >= len(faiss_id_to_info): continue
         chunk_info = faiss_id_to_info[idx]
@@ -127,25 +154,23 @@ def aggregate_results_by_doc(distances: np.ndarray, indices: np.ndarray) -> Dict
                  'relevant_chunk_info': chunk_info,
                  'distance': float(distance)
              }
+    agg_duration = time.time() - t_agg_start
+    RESULT_AGGREGATION_DURATION_SECONDS.observe(agg_duration)
+    logger.info(f"Result aggregation took {agg_duration:.6f}s, aggregated to {len(doc_results)} docs.") # Changed to INFO
     return doc_results
 
-# --- REVISED format_final_results function ---
 def format_final_results(sorted_docs: list, top_k: int) -> List[Dict[str, Any]]:
+     t_format_start = time.time()
      formatted_results = []
-     # docs_to_return will contain the actual results we send back
      docs_to_return = sorted_docs[:top_k]
      num_docs_returned = len(docs_to_return)
 
-     # Log and observe the number of results being returned
      logger.info(f"Preparing to return {num_docs_returned} results with pre-computed summaries.")
      RESULTS_RETURNED_PER_QUERY_COUNT.observe(num_docs_returned)
 
      for filename, data in docs_to_return:
          doc_metadata = metadata_store.get(filename, {})
          chunk_info = data['relevant_chunk_info']
-
-         # The outcome_summary is directly from metadata_store
-         # No active summarization, no timing needed here for that.
          formatted_results.append({
              "case_name": doc_metadata.get("case_name", "N/A"),
              "citation": doc_metadata.get("citation", "N/A"),
@@ -158,9 +183,11 @@ def format_final_results(sorted_docs: list, top_k: int) -> List[Dict[str, Any]]:
              "similarity_score": data['best_score'],
              "distance": data['distance']
          })
-
+     
+     format_duration = time.time() - t_format_start
+     RESULT_FORMATTING_DURATION_SECONDS.observe(format_duration)
+     logger.info(f"Result formatting took {format_duration:.6f}s for {num_docs_returned} docs.") # Changed to INFO
      return formatted_results
-# --- END REVISED format_final_results ---
 
 async def perform_combined_search(query: Optional[str], query_file: Optional[UploadFile], top_k: int) -> List[Dict[str, Any]]:
     if not embedder or not index or not faiss_id_to_info or not metadata_store:
@@ -169,31 +196,31 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
     if not query and not query_file:
          raise HTTPException(status_code=400, detail="Please provide a text query or upload a file.")
 
-    t_start_total = time.time() # This will still measure total time for search + metadata retrieval
+    t_start_total_search_logic = time.time()
     all_doc_results_detailed = {}
 
     if query:
-        t_start_text = time.time()
         logger.info(f"Processing text query: '{query[:100]}...'")
-        try:
-            query_vector = embedder.encode([query], convert_to_numpy=True, device=MODEL_DEVICE)
-            search_k_text = min(max(top_k * 2, 10), index.ntotal)
-            distances, indices = search_index_with_vector(query_vector, search_k_text)
-            doc_results_text = aggregate_results_by_doc(distances, indices)
+        
+        t_embed_start = time.time()
+        query_vector = embedder.encode([query], convert_to_numpy=True, device=MODEL_DEVICE)
+        embed_duration = time.time() - t_embed_start
+        QUERY_EMBEDDING_DURATION_SECONDS.labels(query_type='text').observe(embed_duration)
+        logger.info(f"Text query embedding took {embed_duration:.6f}s.") # Changed to INFO
+        
+        search_k_text = min(max(top_k * 2, 10), index.ntotal)
+        distances, indices = search_index_with_vector(query_vector, search_k_text)
+        doc_results_text = aggregate_results_by_doc(distances, indices)
 
-            for filename, data in doc_results_text.items():
-                if filename not in all_doc_results_detailed or data['best_score'] > all_doc_results_detailed[filename]['best_score']:
-                     all_doc_results_detailed[filename] = data
-
-            logger.info(f"Text query processing took {time.time() - t_start_text:.4f}s. Found {len(doc_results_text)} potential docs.")
-            if indices.size > 0 and indices[0][0] != -1:
-                 SEARCH_CLOSEST_DISTANCE.observe(float(distances[0][0]))
-        except Exception as e:
-             logger.error(f"Error processing text query: {e}", exc_info=True)
+        for filename, data in doc_results_text.items():
+            if filename not in all_doc_results_detailed or data['best_score'] > all_doc_results_detailed[filename]['best_score']:
+                 all_doc_results_detailed[filename] = data
+        
+        if indices.size > 0 and indices[0][0] != -1:
+             SEARCH_CLOSEST_DISTANCE.observe(float(distances[0][0]))
 
     file_chunks = []
     if query_file and query_file.filename:
-         t_start_file = time.time()
          logger.info(f"Processing uploaded file: {query_file.filename}")
          if not query_file.filename.lower().endswith(".pdf"):
                logger.warning(f"Invalid file type uploaded: {query_file.filename}")
@@ -212,34 +239,37 @@ async def perform_combined_search(query: Optional[str], query_file: Optional[Upl
                        logger.info(f"Split uploaded file into {len(file_chunks)} chunks.")
 
                        if file_chunks:
+                           t_embed_file_start = time.time()
                            chunk_embeddings = embedder.encode(file_chunks, convert_to_numpy=True, device=MODEL_DEVICE, show_progress_bar=False)
+                           embed_file_duration = time.time() - t_embed_file_start
+                           QUERY_EMBEDDING_DURATION_SECONDS.labels(query_type='file').observe(embed_file_duration)
+                           logger.info(f"File query embedding ({len(file_chunks)} chunks) took {embed_file_duration:.6f}s.") # Changed to INFO
+                           
                            search_k_file = min(max(top_k // len(file_chunks) + 1, 3), index.ntotal) if len(file_chunks) > 0 else 3
-
-                           for vec in chunk_embeddings:
+                           for vec_idx, vec in enumerate(chunk_embeddings):
+                                logger.info(f"Searching for file chunk {vec_idx+1}/{len(file_chunks)}") # Changed to INFO
                                 distances_f, indices_f = search_index_with_vector(np.array([vec]), search_k_file)
                                 doc_results_chunk = aggregate_results_by_doc(distances_f, indices_f)
                                 for filename, data in doc_results_chunk.items():
                                      if filename not in all_doc_results_detailed or data['best_score'] > all_doc_results_detailed[filename]['best_score']:
                                           all_doc_results_detailed[filename] = data
-                  logger.info(f"File query processing took {time.time() - t_start_file:.4f}s.")
              except Exception as e:
                   logger.error(f"Error processing uploaded file {query_file.filename}: {e}", exc_info=True)
 
     if not all_doc_results_detailed:
          logger.info("No results found from either text or file query.")
-         # If no results found, observe 0 for results returned.
          RESULTS_RETURNED_PER_QUERY_COUNT.observe(0)
          return []
 
     sorted_detailed_docs = sorted(all_doc_results_detailed.items(), key=lambda item: item[1]['best_score'], reverse=True)
-
-    # format_final_results now handles logging the number of results returned
+    
     final_results_with_metadata = format_final_results(sorted_detailed_docs, top_k)
-
-    logger.info(f"Combined search and result formatting finished in {time.time() - t_start_total:.4f}s. Returning {len(final_results_with_metadata)} documents.")
+    
+    total_search_logic_duration = time.time() - t_start_total_search_logic
+    logger.info(f"Core search logic (embedding, search, aggregation, formatting) finished in {total_search_logic_duration:.4f}s. Returning {len(final_results_with_metadata)} documents.")
     return final_results_with_metadata
 
-
+# --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
