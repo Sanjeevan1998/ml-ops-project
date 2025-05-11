@@ -23,7 +23,7 @@ services:
       FAISS_INDEX_PATH: "/app/index/real_index.faiss" 
       FAISS_MAP_PATH: "/app/index/real_map.pkl"       
       METADATA_PATH: "/app/metadata/real_metadata.pkl" 
-      EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT"
+      EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
     networks:
       - monitoring_net # Use the new network name
 
