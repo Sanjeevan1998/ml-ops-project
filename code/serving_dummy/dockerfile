@@ -41,8 +41,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY ./src /app/src
-COPY ./index /app/index
-COPY ./metadata /app/metadata
+# COPY ./index /app/index
+# COPY ./metadata /app/metadata
 # PDF_DATA_DIR, hf_cache, feedback_data, mounted_bucket_storage, optimized_models_local will be mounted as volumes
 
 # Expose the port the app runs on
