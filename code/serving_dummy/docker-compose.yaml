@@ -3,16 +3,16 @@ version: '3.8'
 
 services:
   legal-search-api:
-    build: . # Will use the Dockerfile in the current directory
+    build: . 
     container_name: legal-search-api-dummy
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       # Mounts for data and models - paths inside container match ENV vars in Dockerfile
-      - ./index:/app/index:ro # Should be overridden by FAISS_INDEX_PATH if it's in mounted_bucket_storage
-      - ./metadata:/app/metadata:ro # Should be overridden by METADATA_PATH
-      - ./real_pdfs:/app/pdf_data:ro # Should be overridden by PDF_DATA_DIR
+      - ./index:/app/index:ro 
+      - ./metadata:/app/metadata:ro
+      - ./real_pdfs:/app/pdf_data:ro
       - ./hf_cache:/root/.cache/huggingface
       - ./feedback_data:/app/feedback_data
       - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro
@@ -43,7 +43,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1 # Use 1 GPU. Can be 'all'.
+              count: 1 
               capabilities: [gpu]
     networks:
       - monitoring_net
