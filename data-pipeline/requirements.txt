@@ -10,3 +10,4 @@ spacy==3.6.0
 torch==2.0.1
 transformers==4.30.0
 
+sentencepiece==0.1.99
