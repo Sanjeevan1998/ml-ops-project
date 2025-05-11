@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 # Configuration
 PDF_DIR = "/data"
-OUTPUT_DIR = "/data/metadata"
+OUTPUT_DIR = "/data/processed"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 load_dotenv()
