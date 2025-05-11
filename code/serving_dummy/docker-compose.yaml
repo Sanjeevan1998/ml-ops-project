@@ -1,86 +1,94 @@
-# docker-compose.yaml (Updated with Prometheus & Grafana)
-version: '3.8' # Still okay to leave, despite warning
+# docker-compose.yaml (Updated for GPU support and dynamic device preference)
+version: '3.8'
 
 services:
-  # Renamed service back to 'legal-search-api' for consistency with Prometheus config
   legal-search-api:
-    build: .
+    build: . # Will use the Dockerfile in the current directory
     container_name: legal-search-api-dummy
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-        - ./index:/app/index:ro
-        - ./metadata:/app/metadata:ro
-        - ./real_pdfs:/app/pdf_data:ro
-        - ./hf_cache:/root/.cache/huggingface
-        - ./feedback_data:/app/feedback_data
-        - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro  
-        - /tmp/optimized_models:/app/optimized_models_local:ro
-
+      # Mounts for data and models - paths inside container match ENV vars in Dockerfile
+      - ./index:/app/index:ro # Should be overridden by FAISS_INDEX_PATH if it's in mounted_bucket_storage
+      - ./metadata:/app/metadata:ro # Should be overridden by METADATA_PATH
+      - ./real_pdfs:/app/pdf_data:ro # Should be overridden by PDF_DATA_DIR
+      - ./hf_cache:/root/.cache/huggingface
+      - ./feedback_data:/app/feedback_data
+      - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro
+      - /tmp/optimized_models:/app/optimized_models_local:ro # For ONNX models exported locally on VM
 
     environment:
-      MODEL_DEVICE: "cpu"
-      # ENV vars for paths and model are now set in Dockerfile
-      # Update ENV vars below if using different filenames (defaults match Dockerfile)
-      #MODEL_TYPE_TO_LOAD: "PYTORCH"
-      MODEL_TYPE_TO_LOAD: "ONNX"
-      #ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx" # 
-      ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized"
+      # This variable tells main.py what to prefer.
+      # For CPU-only VM or to force CPU: "cpu"
+      # To attempt GPU usage on a GPU-VM: "cuda"
+      # To let main.py decide based on availability: "auto"
+      MODEL_DEVICE_PREFERENCE: "auto" # CHANGE THIS TO "cuda" for GPU VM, "cpu" for CPU VM, or "auto"
 
-      EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
-      FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"
-      FAISS_MAP_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl"
-      METADATA_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl"
-      PDF_DATA_DIR: "/app/mounted_bucket_storage/LexisRaw" # For PDF downloads
+      # These can override Dockerfile ENV if needed, but Dockerfile defaults are usually fine
+      # MODEL_TYPE_TO_LOAD: "ONNX" # or "PYTORCH"
+      # ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized"
+      # EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
+      # FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"
+      # FAISS_MAP_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl"
+      # METADATA_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl"
+      # PDF_DATA_DIR: "/app/mounted_bucket_storage/LexisRaw"
 
+    # --- GPU Configuration ---
+    # This section enables GPU access for the container.
+    # It will only work if the host VM has NVIDIA drivers and NVIDIA Container Toolkit installed.
+    # On a CPU-only VM, Docker will likely ignore this or might warn/error if nvidia runtime isn't default.
+    # It's generally safe to include; Docker just won't find GPUs to assign on a CPU VM.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # Use 1 GPU. Can be 'all'.
+              capabilities: [gpu]
     networks:
-      - monitoring_net # Use the new network name
+      - monitoring_net
 
   prometheus:
-    image: prom/prometheus:v2.45.0 # Use a specific stable version
+    image: prom/prometheus:v2.45.0
     container_name: prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090" # Expose Prometheus port
+      - "9090:9090"
     volumes:
-      # Mount the config file we created into the container
       - ./monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
-      # Mount a named volume for persistent Prometheus data
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle' # Allows reload via API if needed
+      - '--web.enable-lifecycle'
     networks:
-      - monitoring_net # Must be on the same network
+      - monitoring_net
 
   grafana:
-    image: grafana/grafana-oss:10.2.2 # Use a specific stable OSS version
+    image: grafana/grafana-oss:10.2.2
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3000:3000" # Expose Grafana port
+      - "3000:3000"
     volumes:
-      # Mount a named volume for persistent Grafana data/dashboards
       - grafana_data:/var/lib/grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin # Default user/pass is admin/admin
-      GF_SECURITY_ADMIN_PASSWORD: admin # CHANGE THIS on first login!
-      GF_USERS_ALLOW_SIGN_UP: 'false' # Disable public sign-up
-      # GF_INSTALL_PLUGINS: some-plugin,another-plugin # Optional: install plugins
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
     networks:
-      - monitoring_net # Must be on the same network
-    depends_on: # Start Grafana after Prometheus (optional but good practice)
+      - monitoring_net
+    depends_on:
       - prometheus
 
 networks:
-  monitoring_net: # Define the network
+  monitoring_net:
     driver: bridge
 
-volumes: # Define the named volumes
+volumes:
   prometheus_data:
   grafana_data:
   hf_cache:
