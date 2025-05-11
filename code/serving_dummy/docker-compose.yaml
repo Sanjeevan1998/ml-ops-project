@@ -16,6 +16,7 @@ services:
         - ./hf_cache:/root/.cache/huggingface
         - ./feedback_data:/app/feedback_data
         - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro  
+        - /tmp/optimized_models:/app/optimized_models_local:ro
 
 
     environment:
