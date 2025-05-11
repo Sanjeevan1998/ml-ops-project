@@ -12,7 +12,7 @@ print("Starting REAL artifact generation...")
 start_time = time.time()
 
 # --- Configuration ---
-MODEL_NAME = 'all-MiniLM-L6-v2' # Sticking with this model for now (CPU friendly)
+MODEL_NAME = '/mnt/object-store-persist-group36/model/Legal-BERT-finetuned'
 PDF_DIR = "real_pdfs" # Directory containing your 10 PDFs
 INDEX_DIR = "index" # Output directory for index/map
 METADATA_DIR = "metadata" # Output directory for metadata
