@@ -1,4 +1,3 @@
-# docker-compose.yaml (Updated for GPU support and dynamic device preference)
 version: '3.8'
 
 services:
@@ -9,7 +8,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mounts for data and models - paths inside container match ENV vars in Dockerfile
       - ./index:/app/index:ro 
       - ./metadata:/app/metadata:ro
       - ./real_pdfs:/app/pdf_data:ro
@@ -19,25 +17,7 @@ services:
       - /tmp/optimized_models:/app/optimized_models_local:ro 
 
     environment:
-      # This variable tells main.py what to prefer.
-      # For CPU-only VM or to force CPU: "cpu"
-      # To attempt GPU usage on a GPU-VM: "cuda"
-      # To let main.py decide based on availability: "auto"
       MODEL_DEVICE_PREFERENCE: "auto" 
-      # These can override Dockerfile ENV if needed, but Dockerfile defaults are usually fine
-      # MODEL_TYPE_TO_LOAD: "ONNX" # or "PYTORCH"
-      # ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized"
-      # EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
-      # FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"
-      # FAISS_MAP_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_map.pkl"
-      # METADATA_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_metadata.pkl"
-      # PDF_DATA_DIR: "/app/mounted_bucket_storage/LexisRaw"
-
-    # --- GPU Configuration ---
-    # This section enables GPU access for the container.
-    # It will only work if the host VM has NVIDIA drivers and NVIDIA Container Toolkit installed.
-    # On a CPU-only VM, Docker will likely ignore this or might warn/error if nvidia runtime isn't default.
-    # It's generally safe to include; Docker just won't find GPUs to assign on a CPU VM.
     deploy:
       resources:
         reservations:
