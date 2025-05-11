@@ -16,12 +16,17 @@ services:
         - ./hf_cache:/root/.cache/huggingface
         - ./feedback_data:/app/feedback_data
         - /mnt/object-store-persist-group36:/app/mounted_bucket_storage:ro  
+        - /tmp/optimized_models:/app/optimized_models_local:ro
 
 
     environment:
       MODEL_DEVICE: "cpu"
       # ENV vars for paths and model are now set in Dockerfile
       # Update ENV vars below if using different filenames (defaults match Dockerfile)
+      #MODEL_TYPE_TO_LOAD: "PYTORCH"
+      MODEL_TYPE_TO_LOAD: "ONNX"
+      #ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx" # 
+      ONNX_MODEL_PATH: "/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized"
 
       EMBEDDING_MODEL: "/app/mounted_bucket_storage/model/Legal-BERT-finetuned"
       FAISS_INDEX_PATH: "/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss"

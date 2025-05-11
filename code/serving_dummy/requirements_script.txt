@@ -6,3 +6,4 @@ torch
 PyMuPDF
 langchain
 numpy
+aiohttp
