@@ -59,46 +59,6 @@ services:
         echo "Listing contents of /data/processed after transform stage:"
         ls -l /data/processed
 
-  # Embedding Generation
-  create-embeddings:
-    container_name: etl_create_embeddings
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/data
-      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data/processed
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "🔄 Generating embeddings..."
-        pip install -r /data-pipeline/requirements.txt
-        python3 /data-pipeline/scripts/create_embeddings.py
-        echo "✅ Embeddings generated."
-        echo "Listing contents of /data/processed after transform stage:"
-        ls -l /data/processed
-
-  # Triplet Generation
-  generate-triplets:
-    container_name: etl_generate_triplets
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/data
-      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "🔄 Generating triplets..."
-        pip install -r /data-pipeline/requirements.txt
-        python3 /data-pipeline/scripts/generate_triplets.py
-        echo "✅ Triplets generated."
-
   # Data Upload
   load-data:
     container_name: etl_load_data
