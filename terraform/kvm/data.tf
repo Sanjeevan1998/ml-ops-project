@@ -37,3 +37,7 @@ data "openstack_networking_secgroup_v2" "allow_9090" {
 data "openstack_networking_secgroup_v2" "allow_3000" {
   name = "allow-3000"
 }
+
+data "openstack_networking_secgroup_v2" "allow_fastapi" {
+  name = "sg-group36"
+}
