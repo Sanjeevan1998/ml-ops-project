@@ -95,13 +95,6 @@ services:
         --multi-thread-streams=2 \
         --fast-list
 
-        # Upload embeddings
-        rclone copy /data/embeddings chi_uc:$RCLONE_CONTAINER/embeddings \
-        --progress \
-        --transfers=8 \
-        --checkers=4 \
-        --multi-thread-streams=2 \
-        --fast-list
 
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
