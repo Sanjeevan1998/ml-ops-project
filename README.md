@@ -301,8 +301,10 @@ This section details how our LegalAI system serves inference requests, addressin
         * The user interface for searching is [`code/serving_dummy/src/api/templates/index.html`](./code/serving_dummy/src/api/templates/index.html).
         * The page for displaying results is [`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html).
     * **See It In Action:**
-        * Screenshot of the search page: [`reports/model-serving/Search.png`](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/refs/heads/dummy-serving/reports/model-serving/Search.png)
-        * Screenshot of the results page: [`reports/model-serving/Results.png`](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/refs/heads/dummy-serving/reports/model-serving/Results.png)
+        * Screenshot of the search page: ![Search Page](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/dummy-serving/reports/model-serving/Search.png)
+
+        * Screenshot of the results page: [`reports/model-serving/Results.png`]![Results Page](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/dummy-serving/reports/model-serving/Results.png)
+
 
 2.  **Identify Requirements (Performance, etc.):**
     * **How We Addressed It:** We thought about what kind of performance LegalAI would need to be useful for legal professionals. This includes how fast it should respond (latency), how many searches it can handle at once (throughput/concurrency), and the size of our models. We used our load testing script to gather data to help define these.
