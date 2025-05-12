@@ -1,0 +1,5 @@
+apiVersion: v2
+name: legalai-staging
+version: 1.0.0
+description: legalai Staging Deployment
+
