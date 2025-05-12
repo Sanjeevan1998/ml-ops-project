@@ -340,6 +340,19 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 - **Staged Deployment**: We will have three distinct environments (**staging, canary, production**) for gradual rollout of changes.
 - **Cloud-Native Principles**: Our application will be designed as a collection of **Docker containers**, with each component (models, APIs, data pipelines) deployed as a separate **microservice**.
 
+## Data pipeline
+1. Create persistent storage and Use rclone and authenticate to object store from a compute instance
+   - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
+   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
+
+2. ETL
+  - Extract - unzips data from the direct download link
+  - Transform - Extracts metadata from raw case law files
+  - Load - loads the data in object storage
+    [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
+
+3. Create labeled data
+   
 
 ## Deployment and Execution
 
@@ -350,6 +363,7 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 - **Runtime Phase** : In Runtime we Monitor the Performance of our Model where we Check for the Performance of the Model also monitor the model for Data drift
 - **Update Phase** : Once in the Runtime Phase if we observe issues or have bugs with our model or need to add new features we start back in the retraining phase where we make modifications to the existing model and then take the model till Production following a Staged Deployment
 - **End Phase** : In End Phase we shut down all our systems gracefully ensuring all consumed Chameleon Cloud Resources are released
+
 
 ### Development and Operations Flow
 

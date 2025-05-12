@@ -10,5 +10,4 @@ jinja2
 prometheus-client
 python-multipart
 PyMuPDF
-optimum[onnxruntime]
-onnx
+optimum[onnxruntime-gpu]
