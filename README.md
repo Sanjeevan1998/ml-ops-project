@@ -130,7 +130,7 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | **Persistent Storage** | 20GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and monitoring dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
-
+### Model Training
 #### Unit 4 (Model training at scale):
 - Trained/fine-tuned the legal-bert model using triplet data to train and retrain it on the production:
     We fine-tune a pre-trained Legal-BERT model utilizing a specialized dataset composed of legal text triplets (anchor, positive, negative samples) to enhance its understanding of semantic similarity. This fine-tuning process is designed to be repeatable, allowing the model to be initially trained and subsequently retrained with new user feedback data from production to continuously improve its relevance and accuracy in retrieving similar case files.
@@ -143,7 +143,8 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 - Our fine-tuning strategy for Legal-BERT uses a technique called "triplet loss." The model is shown three pieces of legal text at a time: an "anchor" text, a "positive" text (that is similar to the anchor), and a "negative" text (that is different from the anchor). The model learns to make its internal understanding (embeddings) of the anchor and positive texts very close, while pushing the understanding of the anchor and negative texts further apart, thereby improving its ability to identify semantically similar legal documents.
 
 
-
+### Model Serving (Unit 6) and Monitoring (Unit 7) for LegalAI
+(Disclaimer: The work for model serving (Unit 6) and monitoring (Unit 7) was developed step-by-step inside the code/serving_dummy/ directory in this repository. We started with basic FastAPI, Prometheus, and Grafana containers. Through many small steps, we got to the point where our model serving API is working and we can monitor its performance. The instructions below explain how to get this part of our project running and see its features.)
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, 
 and which optional "difficulty" points you are attempting. -->
 
