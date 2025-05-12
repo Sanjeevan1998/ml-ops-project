@@ -2,7 +2,7 @@
 
 Our machine learning system integrates directly into existing legal research and case preparation workflows. Currently, lawyers and paralegals manually review extensive legal documents, case transcripts, and previous rulings to identify relevant precedents, arguments, and key details. This manual review process is labor-intensive and time-consuming. 
 
-Our proposed AI assistant, LegalAI, will function as a digital paralegal, enabling legal professionals to upload details and transcripts of their current cases. Leveraging advanced NLP techniques and large language models, the system automatically identifies, summarizes, and extracts essential information from relevant case laws. The tool will generate concise summaries and provides essential metadata, allowing lawyers and paralegals to rapidly review pertinent case details with direct links to access comprehensive documents online.
+Our proposed AI assistant, LegalAI, will function as a digital paralegal, enabling legal professionals to upload details and transcripts of their current cases. Leveraging advanced NLP techniques and large language models, the system automatically identifies, and extracts essential information from relevant case laws. The tool will generate concise summaries and provides essential metadata, allowing lawyers and paralegals to rapidly review pertinent case details with direct links to access comprehensive documents online.
 
 This approach not only streamlines and accelerates legal research but significantly enhances objectivity and accuracy in identifying relevant precedents, allowing legal teams to handle a greater volume of cases effectively and strategically.
 
@@ -41,36 +41,6 @@ The LegalAI assistant will be deployed in law firms, corporate legal departments
 * Confidence Scores: Recommendation or summarized precedent is accompanied by a confidence score if its below certain threshold (e.g., "This precedent matches your case context with 72% confidence"), supporting informed decision-making.
 
 
-### Privacy, Fairness, and Ethics Concerns
-#### Privacy Concerns:
-##### Sensitive Data: Legal case documents and client communications frequently contain highly confidential and privileged information. Maintaining strict confidentiality is paramount.
-##### Preventive Measures:
-* All uploaded data and generated summaries will be securely encrypted during storage and transit.
-* Personally identifiable information (PII) and privileged legal details will be anonymized or removed through rigorous preprocessing protocols.
-
-
-#### Fairness Concerns:
-##### Bias in Legal Analysis: The system must avoid biases that could emerge from historical or jurisdictional training data, potentially leading to skewed or unfair analyses.
-##### Preventive Measures:
-* Diverse and comprehensive training datasets will be employed to minimize bias, reflecting various jurisdictions and legal contexts.
-* Regular evaluation and fairness audits will be conducted, employing domain-specific fairness metrics.
-* Legal professionals will have channels for continuous feedback, ensuring iterative refinement and fairness improvement.
-
-
-#### Ethical Concerns:
-##### Incorrect or Missed Identification: There is an inherent risk of incorrectly identifying or failing to identify relevant precedents or legal arguments, potentially affecting case strategies.
-##### Preventive Measures:
-* The system will clearly indicate confidence scores, communicating the reliability of its recommendations explicitly to the users.
-* Lawyers and paralegals retain ultimate control over all case interpretations, ensuring the AI remains a supportive tool rather than a decision-maker.
-* Continuous retraining with user-validated data will maintain high standards of accuracy and reliability.
-
-#### Legal Use of Data:
-#### Compliance and Consent: Ensuring all legal documents and datasets utilized for training and operation are accessed and processed in compliance with applicable laws and regulations.
-#### Preventive Measures:
-* All data usage will strictly adhere to legal agreements, privacy laws, and licensing constraints.
-* Transparent communication with law firms and clients about how their data will be handled, stored, and utilized by LegalAI.
-
-
 ### Contributors
 
 <!-- Table of contributors and their roles. 
@@ -105,31 +75,53 @@ conditions under which it may be used. -->
 
 | Name | How it was created | Conditions of use |  
 |------------------------------------|--------------------|-------------------|  
-| [**Caselaw Access Project Dataset**](https://case.law/) | Publicly available case law data of 6.9 million unique cases from case.law | Fully available for open use, without limitations under Harvard's Library Policy |  
+| [**Lexis Nexis Dataset**](https://www.lexisnexis.com/) | LexisNexis offers extensive legal databases with case law, statutes, regulations, and other legal documents. They also provide access to news articles and other legal resources |  
 
 ## Foundation Models
 
 | Name      | How it was created | Conditions of use |
 |----------|--------------------|-------------------|
-| [**LLaMA 3 (8B or 13B)**](https://huggingface.co/meta-llama) |  A decoder-only transformer model from Meta, optimized for instruction-following, reasoning, and summarization. Capable of handling long-context legal documents effectively when fine-tuned.         | Meta AI License - available for research and non-commercial use                   |
-| [**DeBERTa-v3-base**](https://huggingface.co/microsoft/deberta-v3-base)       | Transformer model with disentangled attention; strong for classification and information extraction in legal text. | MIT License – allows free use, modification, and commercial/academic distribution |
 | [**Legal-BERT**](https://huggingface.co/nlpaueb/legal-bert-base-uncased?utm_source=chatgpt.com)     | Fine-tuned on legal corpora (e.g., contracts, court decisions) for legal language understanding and metadata tagging. | Available for academic research; non-commercial use advised |
-
-### Summary of infrastructure requirements
 
 <!-- Itemize all your anticipated requirements: What (`m1.medium` VM, `gpu_mi100`), 
 how much/when, justification. Include compute, floating IPs, persistent storage. 
 The table below shows an example, it is not a recommendation. -->
 
 
-## Resource Requirements  
+## Deployment and Execution
+
+The Product is a Cloud Native application which can be bootstapped in multiple phases. The Development & Operations Lifecycle of the Product is distributed as follows. The Project can be launched on Trovi as [Legal AI - NLP CaseLaw Identifier](https://chameleoncloud.org/experiment/share/a49b98c4-fb07-41f0-a045-dd68735b7dc3)
+
+- **Boostrapping Phase** : In this Phase we will be setting up the initial Infrastructure which is defined as IaaC using Terraform Scripts and Ansible Playbooks
+- **Development Phase** : In this Phase we train the initial Model and also we evaluate our base performance we use GPU Machines and train Models using Ray Clusters.
+- **Runtime Phase** : In Runtime we Monitor the Performance of our Model where we Check for the Performance of the Model also monitor the model for Data drift
+- **Update Phase** : Once in the Runtime Phase if we observe issues or have bugs with our model or need to add new features we start back in the retraining phase where we make modifications to the existing model and then take the model till Production following a Staged Deployment
+- **End Phase** : In End Phase we shut down all our systems gracefully ensuring all consumed Chameleon Cloud Resources are released
+
+
+### Development and Operations Flow
+
+| Stage | Notebook Pipelines | Operations Executed |
+|-------|--------------------|---------------------|
+| Bootstrapping | [0_create_persistent_storage.ipnyb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/0_create_persistent_storage.ipynb) | This Notebook will initially clone this Repo from Github which contains all the Code help in Setting up the Persistent Storage Block on CHI@UC which is used throughout using terraform |
+| Bootstrapping | [1_key_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/1_key_setup.ipynb) | This will Setup the initial Key Pair with KVM@TACC, it is separated as it runs with Python Kernal and other run with Bash |
+| Bootstrapping | [2_k8s_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/2_k8s_setup.ipynb) | This will create the intial Infrastructure on KVM@TACC which includes Compute Node, Floating IP, Attached Storage. After Node creation this notebook will further Setup K8S using Ansible and KubeSpray and all required tools (MinIO, MLFlow, Postgres, Grafana, Prometheus, ArgoCD, ArgoWorkflows) all are running on single K8S |
+| Development | [1_create_initial_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/development/1_create_initial_deployment.ipynb) | This will create the Argo Workflows needed for building, training, promoting model as well as will setup the Helm Charts for different Environments |
+| End | [0_delete_persistent_storage.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/delete/0_delete_persistent_storage.ipynb) | This will delete the Persistent Storage on CHI@UC |
+| End | [1_delete_kvm_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/delete/1_delete_kvm_resources.ipynb) | This will delete all the resources from KVM@TACC |
+
+
+
+## Summary of infrastructure requirements
+
+### Resource Requirements  
 
 | Requirement         | Quantity/Duration         | Justification  |
 |---------------------|-------------------------|---------------|
-| **m1.medium VMs**  | 3 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (GitHub Actions, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
-| **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | Required for fine-tuning LLaMA 3 and Legal-BERT on large case law data. Also needed for distributed training via Ray. |
-| **Persistent Storage** | 150GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
-| **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and psychologist dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
+| **m1.xlarge VMs**  | 1 for entire project duration | These general-purpose VMs will host Kubernetes clusters, run data pipelines (Kafka, Airflow), serve APIs (FastAPI), and manage CI/CD pipelines (ArgoWorkflow, ArgoCD). They provide sufficient CPU and memory resources for these workloads without unnecessary cost. |
+| **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | Required for fine-tuning Legal-BERT on large case law data. Also needed for distributed training via Ray. |
+| **Persistent Storage** | 20GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
+| **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and monitoring dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
 
 ### Detailed design plan
@@ -141,23 +133,19 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 #### Model training and training platforms
 
 
-We will fine-tune and integrate three pre-trained open-source transformer models to build the LegalAI system:
-- **Summarization Model**: LLaMA 3 (8B or 13B) fine-tuned to summarize long legal case documents based on user-uploaded queries or case transcripts.
-- **Relevance Classifier**: DeBERTa-v3-base, optimized to classify the legal relevance of precedent cases based on similarity and context matching.
+We will fine-tune and integrate pre-trained open-source model to build the LegalAI system:
 - **Metadata Extractor**: Legal-BERT, used to extract structured fields such as involved parties, jurisdictions, legal principles, and outcomes from unstructured text.
-
-We will use a subset of the case.law dataset (6.9M U.S. court decisions). Fine-tuning and evaluation will focus on legal summarization quality and accuracy of case tagging.
 
 Training and hyperparameter tuning will be done using Ray Train and Ray Tune respectively, on Chameleon Cloud GPU nodes. All training experiments, metrics, and models will be versioned and tracked using MLFlow.
 
 ### Relevant parts of the diagram:
-- **Kubernetes Cluster → Model Training & Experiment Tracking:**
-  - Ray Cluster (Distributed Training & Hyperparameter Tuning)
-  - MLFlow Server (Experiment Tracking)
-  - GPU Nodes
+- Kubernetes Cluster → Monitoring & Experiment Tracking
+- Ray Cluster (Distributed Training & Hyperparameter Tuning)
+- MLFlow Server (Experiment Tracking)
+- GPU Nodes
 
 ### Justification for our strategy:
-- **Transformer Models**: LLaMA 3 is lightweight, performant, and open-source—ideal for fine-tuning in legal summarization tasks. DeBERTa-v3-base is effective for classification tasks and balances performance with efficiency. Legal-BERT brings domain-specific awareness, making it ideal for extracting metadata and understanding legal language.
+- **Models**: Legal-BERT brings domain-specific awareness, making it ideal for extracting metadata and understanding legal language.
 - **Distributed Training (Ray Train with DDP)**: Transformer models are computationally intensive and require significant GPU resources. Distributed training allows us to significantly reduce training time, enabling faster experimentation and iteration.
 - **Hyperparameter Tuning (Ray Tune)**: Legal text is complex and varies across jurisdictions. Hyperparameter optimization ensures model robustness across diverse document types.
 - **Experiment Tracking (MLFlow)**: MLFlow provides reproducibility, experiment management, and easy comparison of model performance across experiments, essential for systematic model development.
@@ -176,7 +164,6 @@ Training and hyperparameter tuning will be done using Ray Train and Ray Tune res
 
 ### Specific numbers and details:
 - **GPU Resources**: 2 GPUs, scheduled in 8-hour blocks, twice weekly.
-- **Models**: 3 transformer models (LLaMA 3.2 1B, DeBERTa-v3-base, DeBERTa-v3-small).
 - **Distributed Training**: Ray Train with Distributed Data Parallel (DDP), comparing training times with 1 GPU vs. 2 GPUs.
 - **Hyperparameter Tuning**: Ray Tune with Bayesian optimization or HyperBand, exploring at least 10-20 hyperparameter configurations per model.
 - **Experiment Tracking**: MLFlow server hosted on Chameleon, logging all experiments, hyperparameters, metrics, and artifacts.
@@ -330,7 +317,7 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 
 ### Relation back to lecture material (Unit 3):
 - **Infrastructure-as-Code**: We satisfy the requirement to use **Terraform** and **Ansible** for infrastructure provisioning and configuration.
-- **Automation and CI/CD**: We satisfy the requirement to implement a CI/CD pipeline using **GitHub Actions** and **ArgoCD**.
+- **Automation and CI/CD**: We satisfy the requirement to implement a CI/CD pipeline using **ArgoWorkflows** and **ArgoCD**.
 - **Staged Deployment**: We satisfy the requirement to implement a staged deployment strategy (**staging → canary → production**).
 - **Cloud-Native Principles**: We satisfy the requirement to develop our application using cloud-native principles.
 
@@ -352,26 +339,3 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
     [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
 
 3. Create labeled data
-   
-
-## Deployment and Execution
-
-The Product is a Cloud Native application which can be bootstapped in multiple phases. The Development & Operations Lifecycle of the Product is distributed as follows. The Project can be launched on Trovi as [Legal AI - NLP CaseLaw Identifier](https://chameleoncloud.org/experiment/share/a49b98c4-fb07-41f0-a045-dd68735b7dc3)
-
-- **Boostrapping Phase** : In this Phase we will be setting up the initial Infrastructure which is defined as IaaC using Terraform Scripts and Ansible Playbooks
-- **Development Phase** : In this Phase we train the initial Model and also we evaluate our base performance we use GPU Machines and train Models using Ray Clusters.
-- **Runtime Phase** : In Runtime we Monitor the Performance of our Model where we Check for the Performance of the Model also monitor the model for Data drift
-- **Update Phase** : Once in the Runtime Phase if we observe issues or have bugs with our model or need to add new features we start back in the retraining phase where we make modifications to the existing model and then take the model till Production following a Staged Deployment
-- **End Phase** : In End Phase we shut down all our systems gracefully ensuring all consumed Chameleon Cloud Resources are released
-
-
-### Development and Operations Flow
-
-| Stage | Notebook Pipelines | Operations Executed |
-|-------|--------------------|---------------------|
-| Bootstrapping | [0_create_persistent_storage.ipnyb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/0_create_persistent_storage.ipynb) | This Notebook will initially clone this Repo from Github which contains all the Code help in Setting up the Persistent Storage Block on CHI@UC which is used throughout using terraform |
-| Bootstrapping | [1_key_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/1_key_setup.ipynb) | This will Setup the initial Key Pair with KVM@TACC, it is separated as it runs with Python Kernal and other run with Bash |
-| Bootstrapping | [2_k8s_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/2_k8s_setup.ipynb) | This will create the intial Infrastructure on KVM@TACC which includes Compute Node, Floating IP, Attached Storage. After Node creation this notebook will further Setup K8S using Ansible and KubeSpray and all required tools (MinIO, MLFlow, Postgres, Grafana, Prometheus, ArgoCD, ArgoWorkflows) all are running on single K8S |
-| Development | [1_create_initial_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/development/1_create_initial_deployment.ipynb) | This will create the Argo Workflows needed for building, training, promoting model as well as will setup the Helm Charts for different Environments |
-| End | [0_delete_persistent_storage.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/delete/0_delete_persistent_storage.ipynb) | This will delete the Persistent Storage on CHI@UC |
-| End | [1_delete_kvm_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/delete/1_delete_kvm_resources.ipynb) | This will delete all the resources from KVM@TACC |
