@@ -342,8 +342,8 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 
 ## Data pipeline
 1. Create persistent storage and Use rclone and authenticate to object store from a compute instance
-   [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
-   [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
+   - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
+   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
 
 2. ETL
   - Extract - unzips data from the direct download link
