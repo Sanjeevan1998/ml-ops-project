@@ -417,14 +417,30 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 - **End Phase** : In End Phase we shut down all our systems gracefully ensuring all consumed Chameleon Cloud Resources are released
 
 ## Data pipeline
-1. Create persistent storage and Use rclone and authenticate to object store from a compute instance
+
+1. Persistent Storage
+- Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
+- Volume Name: lexisraw
+- Mount Path: /mnt/persistent/lexisraw
+- image
+
+2. Offline Data
+- Dataset: Case law files from LexisNexis.
+- Total Files: ~30,000 case law PDFs.
+- Sample Example:
+
+Ground Truth: The metadata extracted (case name, court, date) serves as the ground truth for training and evaluation.
+
+3. Data Pipeline
+   Create persistent storage and Use rclone and authenticate to object store from a compute instance
    - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
    - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
 
-2. ETL
+    ETL
   - Extract - unzips data from the direct download link
   - Transform - Extracts metadata from raw case law files
   - Load - loads the data in object storage
     [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
 
-3. Create labeled data
+4. Create labeled data
+   
