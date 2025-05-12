@@ -1,13 +1,13 @@
 version: '3.8'
 
 services:
-  ray_minio_for_cluster: # MinIO service specifically for Ray's internal use
+  ray_minio_for_cluster: 
     image: minio/minio:RELEASE.2023-09-07T02-05-02Z
     container_name: ray_minio_for_cluster
     restart: unless-stopped
     ports:
-      - "9310:9000"  # Host port remapped to avoid conflict with MLflow's MinIO
-      - "9311:9001"  # Host port remapped
+      - "9310:9000" 
+      - "9311:9001"  
     environment:
       MINIO_ROOT_USER: "ray_lab_user_distinct"
       MINIO_ROOT_PASSWORD: "ray_lab_password_distinct"
@@ -20,7 +20,7 @@ services:
     volumes:
       - ray_lab_minio_data_vol:/data
 
-  ray_minio_create_bucket_for_cluster: # Helper service to create a default bucket in Ray's MinIO
+  ray_minio_create_bucket_for_cluster: 
     image: minio/mc
     container_name: ray_minio_create_bucket_for_cluster
     depends_on:
@@ -39,9 +39,9 @@ services:
       fi"
 
   ray-head:
-    image: legalai-ray-env:latest # YOUR custom comprehensive image
+    image: legalai-ray-env:latest
     container_name: ray_head_lab_adapted
-    user: root # Starts as root to set up permissions
+    user: root 
     entrypoint: /bin/sh
     command:
       - -c
@@ -58,29 +58,29 @@ services:
           --block \
           --metrics-export-port=8080 # For Prometheus scraping by Grafana
     ports:
-      - "6379:6379"   # Ray GCS
-      - "8265:8265"   # Ray Dashboard
-      - "8080:8080"   # Ray Metrics export
+      - "6379:6379"  
+      - "8265:8265" 
+      - "8080:8080"  
     shm_size: '16gb'
     volumes:
-      - ray_lab_tmp_vol:/tmp/ray # Ray internal temp files
-      - /home/cc/ml-ops-project:/home/jovyan/work # Mount your project directory from host
-    environment: # For Ray's S3 (internal MinIO) and Grafana integration
+      - ray_lab_tmp_vol:/tmp/ray 
+      - /home/cc/ml-ops-project:/home/jovyan/work 
+    environment: 
       - AWS_ACCESS_KEY_ID=ray_lab_user_distinct
       - AWS_SECRET_ACCESS_KEY=ray_lab_password_distinct
       - AWS_S3_ENDPOINT=http://ray_minio_for_cluster:9000
-      - RAY_GRAFANA_HOST=http://grafana:3000 # Service name for Grafana
+      - RAY_GRAFANA_HOST=http://grafana:3000 
       - RAY_GRAFANA_IFRAME_HOST=http://${HOST_IP:-127.0.0.1}:3310
-      - RAY_PROMETHEUS_HOST=http://ray_head_lab_adapted:8080 # Points to itself for metrics
+      - RAY_PROMETHEUS_HOST=http://ray_head_lab_adapted:8080
 
-  grafana: # Grafana for Ray metrics visualization
+  grafana: 
     image: grafana/grafana:latest
-    container_name: ray_grafana_lab_adapted # Consistent naming with your file
+    container_name: ray_grafana_lab_adapted 
     ports:
-      - "3310:3000" # Host port remapped
+      - "3310:3000"
     volumes:
       - ray_lab_grafana_storage_vol:/var/lib/grafana
-      - ray_lab_tmp_vol:/tmp/ray:ro # Read-only access to Ray temp for some data sources
+      - ray_lab_tmp_vol:/tmp/ray:ro 
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -91,9 +91,9 @@ services:
       - ray-head
 
   ray-worker-1:
-    image: legalai-ray-env:latest # YOUR custom comprehensive image
+    image: legalai-ray-env:latest 
     container_name: ray_worker_1_lab_adapted
-    user: root # Starts as root
+    user: root 
     entrypoint: /bin/sh
     command:
       - -c
@@ -106,26 +106,26 @@ services:
         exec /usr/local/bin/gosu jovyan ray start --address=ray_head_lab_adapted:6379 --block
     shm_size: '16gb'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # If Ray needs to interact with Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
       - ray_lab_tmp_vol:/tmp/ray
-      - /home/cc/ml-ops-project:/home/jovyan/work # Mount your project directory from host
+      - /home/cc/ml-ops-project:/home/jovyan/work
     depends_on:
       - ray-head
-    deploy: # GPU configuration for the worker
+    deploy: 
       resources:
         reservations:
           devices:
             - driver: "nvidia"
               capabilities: ["gpu"]
-              count: 1 # Uses one GPU; adjust if multiple are on RTX_6000 and desired
-    environment: # For Ray's S3 (internal MinIO) and NVIDIA driver visibility
+              count: 1
+    environment: 
       - AWS_ACCESS_KEY_ID=ray_lab_user_distinct
       - AWS_SECRET_ACCESS_KEY=ray_lab_password_distinct
       - AWS_S3_ENDPOINT=http://ray_minio_for_cluster:9000
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-volumes: # Named volumes for data persistence
+volumes:
   ray_lab_grafana_storage_vol:
   ray_lab_tmp_vol:
   ray_lab_minio_data_vol:
