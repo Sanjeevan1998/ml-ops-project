@@ -52,10 +52,10 @@ link to their contributions in all repos here. -->
 | Name                            | Responsible for| Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
 | All team members                |Idea formulation, value proposition, ML problem setup, integration|     NA                               |
-| Arnab Bhowal                   |Model Training|        https://github.com/Sanjeevan1998/mindful/commits/main/?author=arnabbhowal                            |
-| Sanjeevan Adhikari                   |Model Serving and Monitoring|             https://github.com/Sanjeevan1998/mindful/commits/main/?author=Sanjeevan1998                       |
-| Divya Chougule                   |Data Pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/mindful/commits/main/?author=divyaa25                   |
-| Vishwas Karale                   |Continous X Pipeline|                   https://github.com/Sanjeevan1998/mindful/commits/main/?author=vishwaskarale83                 |
+| Arnab Bhowal                   |Model Training|        https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=arnabbhowal                            |
+| Sanjeevan Adhikari                   |Model Serving and Monitoring|             https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=Sanjeevan1998                       |
+| Divya Chougule                   |Data Pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=divyaa25                   |
+| Vishwas Karale                   |Continous X Pipeline|                   https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=vishwaskarale83                 |
 
 
 
@@ -181,7 +181,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 
 1.  **Create a VM:**
     * You can create a CPU node (like an `m1.large`) on **KVM@TACC** or a GPU node (like a `gpu_rtx6000`) on **CHI@UC**.
-    * We've provided the Jupyter Notebook that shows how we created a CPU node at KVM@TACC using `python-chi`. You can find a PDF version of this notebook here: [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf).
+    * We've provided the Jupyter Notebook that shows how we created a CPU node at KVM@TACC using `python-chi`. You can find a PDF version of this notebook here: [`reports/model-serving/runvm.ipynb`](./reports/model-serving/runvm.ipynb).
         * This notebook covers creating the VM, getting a floating IP, and setting up security groups for necessary ports: 22 (SSH), 8000 (our FastAPI app), 3000 (Grafana), and 9090 (Prometheus).
 
 2.  **SSH into the VM:**
@@ -266,41 +266,144 @@ To run and test our model serving and monitoring setup, you'll first need a virt
     * Also, the `MODEL_DEVICE_PREFERENCE` environment variable (either in the Dockerfile or overridden in `docker-compose.yaml`) should be set to `"cpu"` (or `"auto"`) for CPU VMs, and `"cuda"` for GPU VMs.
 
 8.  **Build and Run Docker Containers:**
-    * With `docker-compose.yaml` correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
+    * Once `docker-compose.yaml` is correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
         ```bash
         docker compose up -d --build
         ```
-    * This will build the Docker image (which can take ~2 minutes on a CPU node or ~10-12 minutes on a GPU node if it's the first time) and then start the API service, Prometheus, and Grafana.
+    * This will build the Docker image (which can take ~2-5 minutes on a CPU node, or ~10-15 minutes on a GPU node if downloading base images for the first time and installing many dependencies) and then start the API service, Prometheus, and Grafana.
     * To check if the API started correctly and to see which device it's using (CPU or CUDA), you can view its logs:
         ```bash
         docker logs legal-search-api-dummy
         ```
-        Look for lines indicating "Effective device: cpu" or "Effective device: cuda".
+        Look for lines in the log indicating "Effective device: cpu" or "Effective device: cuda".
+    * **If everything started successfully, you can access the services at:**
+        * **LegalAI Search API (Frontend):** `http://<VM_FLOATING_IP>:8000/`
+        * **FastAPI Health Check:** `http://<VM_FLOATING_IP>:8000/health`
+        * **Prometheus:** `http://<VM_FLOATING_IP>:9090/`
+        * **Grafana:** `http://<VM_FLOATING_IP>:3000/` (default login: admin/admin)
+        *(Remember to replace `<VM_FLOATING_IP>` with the actual floating IP address of your Chameleon VM.)*
 
 **II. Model Serving (Unit 6)**
 
-*This section details how our LegalAI system serves inference requests, meeting the requirements of Unit 6.*
+This section details how our LegalAI system serves inference requests, addressing the "must satisfy" requirements for Unit 6 and an extra difficulty point. All related code for this part is primarily within the [`code/serving_dummy/`](./code/serving_dummy/) directory.
 
-*(Dummy text for now in case time runs out: We will describe our FastAPI application ([`src/api/main.py`](./src/api/main.py)), which provides a `/search_combined` endpoint for users to submit text queries or PDF files. We'll explain how it uses either our fine-tuned PyTorch model or the optimized ONNX INT8 model (selected via `MODEL_TYPE_TO_LOAD` env var) for generating embeddings. The system uses FAISS ([loaded from paths in `docker-compose.yaml`](./docker-compose.yaml)) for efficient similarity search. We explored model optimizations like ONNX conversion and INT8 quantization (see [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py)) and system optimizations like using FastAPI for asynchronous handling and Docker for containerization. Performance requirements (latency, throughput) were identified using load tests ([`src/test/load_test_api.py`](./src/test/load_test_api.py)), and the results of CPU vs. GPU serving are detailed in our performance comparison document ([`reports/model-serving/cpu_vs_gpu_performance.md`](./reports/model-serving/cpu_vs_gpu_performance.md)). This document also discusses our findings for the "Develop multiple options for serving" difficulty point.)*
+1.  **Serving from an API Endpoint:**
+    * **How We Addressed It:** We built a web application using FastAPI that allows users to search for legal documents. Users can either type in a text query or upload a PDF document to find similar cases. The results are displayed on a web page.
+    * **Key Code/Files:**
+        * The main API logic with endpoints like `/search_combined` is in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * The user interface for searching is [`code/serving_dummy/src/api/templates/index.html`](./code/serving_dummy/src/api/templates/index.html).
+        * The page for displaying results is [`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html).
+    * **See It In Action:**
+        * Screenshot of the search page: ![Search Page](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/dummy-serving/reports/model-serving/Search.png)
 
-**III. Monitoring (Unit 7)**
+        * Screenshot of the results page: [`reports/model-serving/Results.png`]![Results Page](https://raw.githubusercontent.com/Sanjeevan1998/ml-ops-project/dummy-serving/reports/model-serving/Results.png)
 
-*This section explains our approach to evaluation and monitoring, addressing Unit 7 requirements.*
 
-*(Dummy text for now in case time runs out: Our system uses Prometheus for metrics collection, configured via [`monitoring/prometheus.yaml`](./monitoring/prometheus.yaml) and running as a service defined in [`docker-compose.yaml`](./docker-compose.yaml). Our FastAPI application ([`src/api/main.py`](./src/api/main.py)) is instrumented with custom Prometheus metrics (e.g., `query_embedding_duration_seconds`, `feedback_received_total`, `search_closest_distance`). These metrics can be visualized using Grafana, accessible at `http://<VM_FLOATING_IP>:3000` (default login admin/admin). We conducted load tests in our Chameleon staging environment using [`src/test/load_test_api.py`](./src/test/load_test_api.py) to evaluate performance under different loads. To "close the loop," we implemented a user feedback mechanism in the UI ([`src/api/templates/results.html`](./src/api/templates/results.html)) that logs feedback to `/app/feedback_data/feedback.jsonl` via the `/log_feedback` API endpoint. Our business-specific evaluation plan for LegalAI, focusing on metrics like reduction in review time and improved accuracy, is also discussed in our project report.)*
+2.  **Identify Requirements (Performance, etc.):**
+    * **How We Addressed It:** We thought about what kind of performance LegalAI would need to be useful for legal professionals. This includes how fast it should respond (latency), how many searches it can handle at once (throughput/concurrency), and the size of our models. We used our load testing script to gather data to help define these.
+    * **Key Code/Files for Testing:**
+        * Load testing was done using the script: [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py).
+        * Metrics can be collected in Prometheus, but currently we have logs in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+    * **Detailed Requirements Document:** [`reports/model-serving/Identifyrequirements.pdf`](./reports/model-serving/Identifyrequirements.pdf)
+
+3.  **Model Optimizations to Satisfy Requirements:**
+    * **How We Addressed It:** To make our model run faster and take up less space, we converted our fine-tuned Legal-BERT model into the ONNX format. Then, we applied INT8 quantization to make it even smaller and quicker, especially on CPUs. Our API can load and serve this optimized ONNX model.
+        * For example, our single file search (8 chunks) using the ONNX INT8 model on a CPU took about 3.59 seconds for embedding and core search logic.
+    * **Key Code/Files:**
+        * Script for converting to ONNX and quantizing: [`code/serving_dummy/src/processing/quantize_onnx_model.py`](./code/serving_dummy/src/processing/quantize_onnx_model.py) (this script also handles the initial export to ONNX).
+        * I tried using basic Pytorch model, onnx and quantized onnx. 
+    * **Detailed Model Optimizations Report:** [`reports/model-serving/Modeloptimizations.pdf`](./reports/model-serving/Modeloptimizations.pdf)
+
+4.  **System Optimizations to Satisfy Requirements:**
+    * **How We Addressed It:** We used FastAPI for our API because it's good at handling many user requests at the same time (asynchronous). We also used Docker to package our application, which makes it easy to deploy consistently. These choices help our system support multiple users and respond without long delays. This is discussed in more detail in our "Extra Difficulty Point" section below, where we compare CPU and GPU performance.
+    * **Key Code/Files:**
+        * FastAPI application: [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * Docker setup: [`code/serving_dummy/Dockerfile`](./code/serving_dummy/Dockerfile) and [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+
+5.  **Extra Difficulty Point: Develop Multiple Options for Serving (CPU vs. GPU Comparison)**
+    * **How We Addressed It:** We set up and tested our LegalAI service on two different types of virtual machines on Chameleon Cloud: a standard CPU instance (`m1.large` at KVM@TACC) and a more powerful GPU instance (RTX 6000 at CHI@UC). We used our ONNX INT8 quantized model for these tests.
+        * **CPU:** A single file search (8 chunks) took about **3.59 seconds**. Under a load of 5 concurrent users, it handled about **0.42 requests per second (RPS)** with an average latency of **12.46 seconds**, and 11% of requests failed. With 10 concurrent users, performance degraded further (0.48 RPS, 23.93s latency, 21% errors).
+        * **GPU:** The same single file search took only about **1.56 seconds**. With 5 concurrent users, the GPU handled **1.12 RPS** with an average latency of **4.44 seconds** and no errors. At 10 concurrent users, it achieved **1.25 RPS** with 8.49s average latency and 10% errors.
+        * The GPU was significantly faster for individual tasks (especially embeddings) and handled concurrent users much better with lower latency and fewer errors up to a certain point. However, GPU instances are generally more expensive.
+    * **Key Code/Files:**
+        * API with dynamic device (CPU/GPU) selection logic: [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * Docker Compose configurations (one for CPU, one for GPU, managed by editing [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) as described in setup, or see examples in `info.txt`).
+        * The `python-chi` scripts for VM setup are referenced in [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf) (and would be adapted for GPU VM creation).
+    * **Detailed Report on CPU vs. GPU:** [`reports/model-serving/ExtraDifficultyPoint.pdf`](./reports/model-serving/ExtraDifficultyPoint.pdf)
+
+
+**III. Monitoring and Evaluation (Unit 7)**
+
+This section explains our approach to evaluating and monitoring the LegalAI service, addressing the requirements for Unit 7. The core setup for monitoring is integrated with our services defined in [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+
+Our basic monitoring dashboard setup in Grafana, showing some initial metrics, can be seen here:
+![Early Stage Grafana Dashboard](./reports/model-serving/earlyStageGrafana.jpg)
+*(Caption: Early Grafana setup showing basic metrics. We exported a JSON for a more detailed dashboard, but integrating it fully is a next step due to time constraints.)*
+
+Here’s how we addressed the specific Unit 7 requirements:
+
+1.  **Offline Evaluation of Model:**
+    * **Status:** Not fully Covered .
+    * **In `serving_dummy`:** Our current setup focuses on serving an already-trained model. The full offline evaluation pipeline is a broader team effort, integrating with the model training parts (Units 4 & 5) and CI/CD (Unit 3). For this serving component, we rely on receiving a validated model.
+
+2.  **Load Test in Staging:**
+    * **Status:** Covered.
+    * **How We Addressed It:** We developed an asynchronous load testing script, [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py). We used this script to send many concurrent requests to our API deployed on Chameleon (acting as our staging environment) to see how it performs under pressure. This was used for our CPU vs. GPU comparisons.
+    * **Surfacing Results:** Currently, the load test script outputs detailed results (RPS, latency, error rates) to the console. For a more advanced setup, these metrics could be pushed to Prometheus or logged in a way that Grafana can display them.
+
+3.  **Online Evaluation in Canary Environment:**
+    * **Status:** Partially Covered (Foundation Laid / Planned).
+    * **How We Addressed It:** Our load testing script ([`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py)) can serve as the "artificial users" for online evaluation. We can configure it to send various types of queries/PDFs.
+    * **Next Steps:** To do a full canary evaluation, we would deploy a new version of our model alongside the current one and direct a small percentage of these artificial user requests to it. We'd then compare performance and feedback before a full rollout. The current Docker setup can be adapted for this (e.g., by running two differently configured API services). A detailed plan for how the artificial users would represent the range of real user behaviors is an important next step.
+
+4.  **Close the Loop (Feedback and Retraining Data):**
+    * **Status:** Covered (Feedback Collection Implemented).
+    * **How We Addressed It:** We've implemented a way for users to give feedback on search results.
+        * The results page ([`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html)) has "Correct 👍" / "Incorrect 👎" buttons.
+        * This feedback is sent to the `/log_feedback` endpoint in our API ([`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py)).
+        * The API logs this feedback (query, result, feedback type, model used, device used) into a `feedback.jsonl` file located in the `/app/feedback_data/` directory inside the container (this directory is mounted from `feedback_data/` on the host VM as per [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml)).
+    * **Next Steps:** This collected feedback data, along with a portion of production queries and their results, would be saved and labeled to create new datasets for re-training our models, which is part of the broader MLOps cycle (Units 4, 5, 8).
+
+5.  **Define a Business-Specific Evaluation:**
+    * **Status:** Partially Covered (Metrics Defined, Plan to be Detailed).
+    * **How We Addressed It:** In our initial project proposal for LegalAI, we defined key business metrics:
+        * Reduction in time spent by legal professionals reviewing case documents.
+        * Improved accuracy in identifying relevant precedents.
+        * User satisfaction and usability.
+    * **Next Steps/Current Implementation:** The user feedback mechanism (point 4 above) directly helps us start measuring "User Satisfaction and Usability." For a full deployment, we would need to design specific A/B tests or user studies to measure the reduction in review time and improvement in accuracy compared to the non-ML status quo. This detailed measurement plan would be part of our full project documentation.
+
+**Monitoring Tools Setup:**
+* **Prometheus:** Collects metrics from our API.(Not fully complete) Configured in [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml) and runs as a service in [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+* **Custom Metrics:** Our FastAPI application ([`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py)) exposes custom metrics like `query_embedding_duration_seconds`, `faiss_search_duration_seconds`, `feedback_received_total`, and `search_closest_distance`, which include labels for model type and device used.
+* **Grafana:** Used for visualizing these metrics (in progress). It's deployed via [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) and can be accessed at `http://<VM_FLOATING_IP>:3000` (default login: admin/admin). We've started a basic dashboard and have an exported JSON for a more advanced one for future implementation.
+
 
 **IV. Key Scripts and Their Roles**
 
-*This section briefly describes the purpose of important scripts related to this part of the project.*
+This section briefly describes the purpose of important files and scripts used for the model serving and monitoring part of our LegalAI project. Most of these are located within the [`code/serving_dummy/`](./code/serving_dummy/) directory.
 
-*(The following files were used for:
-* [`src/api/main.py`](./src/api/main.py): The core FastAPI application that serves search requests, handles different model types (PyTorch/ONNX), and exposes metrics.
-* [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py): Script responsible for taking the fine-tuned PyTorch model, exporting it to ONNX format, and then applying INT8 quantization to create an optimized model for serving.
-* [`src/processing/create_artifacts_from_object_storage.py`](./src/processing/create_artifacts_from_object_storage.py): An earlier script used to process PDFs from our team's object storage, chunk them, generate embeddings, and create the initial FAISS index and metadata files.
-* [`src/test/load_test_api.py`](./src/test/load_test_api.py): The asynchronous Python script used to perform load testing against the `/search_combined` API endpoint, measuring latency and throughput.
-* [`Dockerfile`](./Dockerfile): Defines how the Docker image for our `legal-search-api` service is built, including dependencies and environment setup.
-* [`docker-compose.yaml`](./docker-compose.yaml): Orchestrates the deployment of our `legal-search-api`, Prometheus, and Grafana services, managing networking, volumes, and environment variables.
-* [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf): PDF guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
+* **API and Serving Logic:**
+    * [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py): This is the heart of our service. It's a FastAPI application that handles incoming search requests (text or PDF), uses our machine learning models (PyTorch or ONNX) to understand the query, searches our FAISS index for relevant legal documents, and sends back the results. It also exposes custom metrics for Prometheus.
+    * [`code/serving_dummy/src/api/templates/index.html`](./code/serving_dummy/src/api/templates/index.html): The simple webpage where users can type their search or upload a PDF.
+    * [`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html): The webpage that displays the search results and allows users to give feedback.
+
+* **Model Processing and Optimization Scripts (in [`code/serving_dummy/src/processing/`](./code/serving_dummy/src/processing/)):**
+    * [`export_to_onnx.py`](./code/serving_dummy/src/processing/export_to_onnx.py): Takes our fine-tuned PyTorch model (Legal-BERT) and converts it into the ONNX format. This is the first step for optimizing the model.
+    * [`quantize_onnx_model.py`](./code/serving_dummy/src/processing/quantize_onnx_model.py): Takes the ONNX model (created by `export_to_onnx.py` or as its first step) and applies INT8 quantization. This makes the model smaller and often faster, especially on CPUs. The output is the quantized ONNX model that our API uses for serving.
+    * [`create_artifacts_from_object_storage.py`](./code/serving_dummy/src/processing/create_artifacts_from_object_storage.py): This script was used to process a larger set of PDF documents from our team's persistent object storage. It extracts text, chunks it, generates embeddings using our model, and builds the main FAISS index and metadata files that our API uses for searching.
+    * [`create_real_artifacts.py`](./code/serving_dummy/src/processing/create_real_artifacts.py): A script for processing a smaller, local set of actual PDF documents (from the `real_pdfs` folder) to create a FAISS index, map, and placeholder metadata. Useful for local testing with real data.
+    * [`create_dummy_artifacts.py`](./code/serving_dummy/src/processing/create_dummy_artifacts.py): Creates a very small, fake FAISS index and metadata using a few sample texts and a standard lightweight model. This was helpful for quick initial development and testing of the API structure without needing the full dataset or our custom model.
+
+* **Testing and Evaluation:**
+    * [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py): An asynchronous Python script we wrote to send many requests to our API at the same time. This helps us test how well the API performs under load (measuring speed, how many requests it can handle, and error rates).
+
+* **Deployment and Orchestration:**
+    * [`code/serving_dummy/Dockerfile`](./code/serving_dummy/Dockerfile): Contains the instructions to build the Docker image for our `legal-search-api` service. It sets up the Python environment, installs dependencies, and copies our application code. It's built on an NVIDIA CUDA base image so it can work for both CPU and GPU deployments.
+    * [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml): This file tells Docker Compose how to run all our services together: our `legal-search-api`, Prometheus (for collecting metrics), and Grafana (for showing dashboards). It manages things like networking between containers, what data volumes to use, and environment variables for configuration (like choosing CPU or GPU). *(Note: Specific configurations for CPU vs. GPU deployment are provided in [`code/serving_dummy/info.txt`](./code/serving_dummy/info.txt) to be copied into this file as needed).*
+    * [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml): The configuration file for Prometheus, telling it which services to get metrics from (like our API).
+
+* **Infrastructure Setup Guide:**
+    * [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf): A PDF version of our Jupyter Notebook that guides through programmatically setting up a CPU Virtual Machine on Chameleon Cloud at KVM@TACC using `python-chi`. This includes creating the VM, assigning a public IP, and configuring security groups. (This script can be adapted for GPU VM creation at CHI@UC).
 
 
 #### Data pipeline
@@ -360,7 +463,7 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 - Additionally, we will use **Ansible** to automate the configuration and setup of these infrastructure components, ensuring a consistent and reliable environment.
 
 **Automation and CI/CD**:
-- Our CI/CD pipeline will be implemented using **GitHub Actions** and **ArgoCD**. Whenever changes are made to our codebase (e.g., model updates, API changes, infrastructure modifications), the CI/CD pipeline will be triggered to:
+- Our CI/CD pipeline will be implemented using **Argo Workflows** and **ArgoCD**. Whenever changes are made to our codebase (e.g., model updates, API changes, infrastructure modifications), the CI/CD pipeline will be triggered to:
   - Automatically build and test the changes.
   - Package the application components (models, APIs, data pipelines) into **Docker containers**.
   - Deploy the containerized components to our **Kubernetes cluster** in a staged manner (**staging → canary → production**).
