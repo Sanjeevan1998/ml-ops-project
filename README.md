@@ -107,7 +107,7 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | Bootstrapping | [1_key_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/1_key_setup.ipynb) | This will Setup the initial Key Pair with KVM@TACC, it is separated as it runs with Python Kernal and other run with Bash |
 | Bootstrapping | [2_k8s_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/2_k8s_setup.ipynb) | This will create the intial Infrastructure on KVM@TACC which includes Compute Node, Floating IP, Attached Storage. After Node creation this notebook will further Setup K8S using Ansible and KubeSpray and all required tools (MinIO, MLFlow, Postgres, Grafana, Prometheus, ArgoCD, ArgoWorkflows) all are running on single K8S |
 | Development | [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/1_create_server.ipynb) [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/2_object.ipynb)| This will Create persistent storage and Use rclone and authenticate to object store from a compute instance |
-| Development | [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml) | ETL - This will downloads the raw PDFs to the persistent storage, extracts text and metadata from PDFs and generates structured CSV files.Then loads processed data to object storage for downstream tasks. | 
+| Development | [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/docker/docker-compose-etl.yaml) | ETL - This will downloads the raw PDFs to the persistent storage, extracts text and metadata from PDFs and generates structured CSV files.Then loads processed data to object storage for downstream tasks. | 
 | Development | [1_create_initial_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/development/1_create_initial_deployment.ipynb) | This will create the Argo Workflows needed for building, training, promoting model as well as will setup the Helm Charts for different Environments |
 | Development | [1_Model_training_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/tree/main/notebooks/development/model_training/1_Model_training_setup.ipynb) |  Provisions a Chameleon Cloud GPU node and installs essential system software like Docker and NVIDIA drivers. |
 | Development | [2_Model_training_run.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/tree/main/notebooks/development/model_training/2_Model_training_run.ipynb) |  Guides through running the training script in a standalone Docker container, setting up a local MLflow instance for experiment tracking, and connecting to remote services. |
@@ -146,15 +146,11 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 Ground Truth: The metadata extracted (case name, court, date) serves as the ground truth for training and evaluation.
 
 #### 3. Data Pipeline
-   Create persistent storage and Use rclone and authenticate to object store from a compute instance
-   - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
-   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
-
    #### ETL
   - Extract - unzips data from the direct download link
   - Transform - Extracts metadata from raw case law files
   - Load - loads the data in object storage
-    [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
+    [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/docker/docker-compose-etl.yaml)
 
 
 ### Model Training
