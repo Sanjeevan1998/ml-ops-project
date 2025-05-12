@@ -184,58 +184,136 @@ and which optional "difficulty" points you are attempting. -->
 
 #### Model serving and monitoring platforms
 
-<!-- Make sure to clarify how you will satisfy the Unit 6 and Unit 7 requirements, 
-and which optional "difficulty" points you are attempting. -->
+### Model Serving (Unit 6) and Monitoring (Unit 7) for LegalAI
 
-We will deploy our fine-tuned models as APIs using FastAPI, which is known for its speed and ease of use. The models will be containerized using Docker and orchestrated with Kubernetes on Chameleon Cloud. This setup allows for efficient scaling and management of our model-serving infrastructure.
+*(Disclaimer: The work for model serving (Unit 6) and monitoring (Unit 7) was developed step-by-step inside the [`code/serving_dummy/`](./code/serving_dummy/) directory in this repository. We started with basic FastAPI, Prometheus, and Grafana containers. Through many small steps, we got to the point where our model serving API is working and we can monitor its performance. The instructions below explain how to get this part of our project running and see its features.)*
 
-To ensure optimal performance, we will implement model-level optimizations such as quantization and ONNX conversion, which reduce model size and improve inference speed. We will also compare CPU and GPU serving options to determine the most cost-effective and performant solution for our application.
+**I. Setting Up the Environment on Chameleon Cloud**
 
-For monitoring, we will utilize Prometheus for collecting metrics and Grafana for visualizing these metrics in real-time. This monitoring setup will help us track model performance, latency, and resource utilization. Additionally, we will implement automated load testing to simulate user interactions and evaluate the system's performance under different loads.
+To run and test our model serving and monitoring setup, you'll first need a virtual machine (VM) on Chameleon Cloud.
 
-To address potential issues with model performance, we will set up data and model drift monitoring. If significant drift is detected, our system will trigger automatic retraining of the models to maintain accuracy and relevance.
+1.  **Create a VM:**
+    * You can create a CPU node (like an `m1.large`) on **KVM@TACC** or a GPU node (like a `gpu_rtx6000`) on **CHI@UC**.
+    * We've provided the Jupyter Notebook that shows how we created a CPU node at KVM@TACC using `python-chi`. You can find a PDF version of this notebook here: [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf).
+        * This notebook covers creating the VM, getting a floating IP, and setting up security groups for necessary ports: 22 (SSH), 8000 (our FastAPI app), 3000 (Grafana), and 9090 (Prometheus).
 
-### Relevant parts of the diagram:
-- **Kubernetes Cluster → Model Serving API (FastAPI, Models)**
-- **Kubernetes Cluster → Monitoring & Evaluation (Prometheus, Grafana, Load Tests, Drift Monitoring)**
-- **Staged Deployment (Staging → Canary → Production)**
+2.  **SSH into the VM:**
+    * Once your VM is running and has a floating IP address, connect to it using SSH:
+        ```bash
+        ssh -i /path/to/your/chameleon_private_key cc@<VM_FLOATING_IP>
+        ```
 
-### Justification for our strategy:
-- **FastAPI** is an excellent choice for serving machine learning models due to its high performance and ease of integration with Python-based ML frameworks. It allows us to create RESTful APIs quickly, enabling therapists to access model predictions seamlessly.
-- **Docker** ensures that our models and their dependencies are packaged consistently, making deployment straightforward across different environments. This containerization also simplifies scaling and management within Kubernetes.
-- **Kubernetes** provides robust orchestration capabilities, allowing us to manage multiple instances of our model-serving APIs efficiently. It also supports automatic scaling based on demand, ensuring that we can handle varying loads effectively.
-- **Prometheus** and **Grafana** are industry-standard tools for monitoring and visualization. They allow us to track key performance metrics, ensuring that we can respond quickly to any issues that arise in production.
-- Implementing **automated load testing** and **drift monitoring** ensures that our system remains reliable and accurate over time, addressing potential performance degradation proactively.
+3.  **Initial VM Setup:**
+    * Make sure `python3` and `pip3` are installed. Ubuntu 22.04 usually has these. If not, you can install them with:
+        ```bash
+        sudo apt update
+        sudo apt install python3 python3-pip -y
+        ```
+    * **For GPU VMs Only:** If you're using a GPU VM for serving:
+        * You'll need to install NVIDIA drivers. Make sure they are compatible with CUDA 12.1 (which our Docker image uses). We followed steps similar to those shown in class (using `ubuntu-drivers devices` then `sudo apt install nvidia-driver-XXX`).
+        * Install the NVIDIA Container Toolkit. You can follow the official NVIDIA guide for this. This allows Docker to use the GPU.
+        * After installing drivers or the toolkit, restart Docker: `sudo systemctl restart docker`.
 
-### Relation back to lecture material (Units 6 & 7):
+4.  **Mount Persistent Object Storage (using rclone):**
+    Our application needs to access our team's fine-tuned model, the FAISS index, and metadata files. These are stored in our team's persistent object storage. Here's how to mount it:
+    * Install rclone:
+        ```bash
+        curl [https://rclone.org/install.sh](https://rclone.org/install.sh) | sudo bash
+        ```
+    * Allow FUSE for non-root users (this might already be set):
+        ```bash
+        sudo sed -i '/^#user_allow_other/s/^#//' /etc/fuse.conf
+        ```
+    * Create the rclone configuration directory and file:
+        ```bash
+        mkdir -p ~/.config/rclone
+        nano ~/.config/rclone/rclone.conf
+        ```
+    * Paste the following configuration into `rclone.conf`. **Important: Replace the placeholders (`<...>`) with your team's actual Chameleon application credential ID and secret.**
+        ```ini
+        [chi_uc_object_store]
+        type = swift
+        user_id = <chameleon_user_id_with_access_to_team_storage>
+        application_credential_id = <your_team_application_credential_id>
+        application_credential_secret = <your_team_application_credential_secret>
+        auth = [https://chi.uc.chameleoncloud.org:5000/v3](https://chi.uc.chameleoncloud.org:5000/v3)
+        region = CHI@UC
+        ```
+        *(Note: Adjust the `region` if your team's object storage bucket was created at a different Chameleon site.)*
+    * Create the mount point on your VM and set permissions:
+        ```bash
+        sudo mkdir -p /mnt/object-store-persist-group36
+        sudo chown -R cc:cc /mnt/object-store-persist-group36
+        ```
+    * Mount the object storage. **It's best to run this command in a separate terminal window or a `screen`/`tmux` session on the VM because it will run in the foreground and show live connection logs.**
+        ```bash
+        rclone mount chi_uc_object_store:object-store-persist-group36 /mnt/object-store-persist-group36 --read-only --allow-other --vfs-cache-mode full -vv
+        ```
+        This command makes our team's persistent storage available at `/mnt/object-store-persist-group36` on the VM in read-only mode. Our Docker containers will then mount this path.
 
-#### Unit 6 (Model serving):
-- We satisfy the requirement to serve models via APIs using FastAPI, ensuring low-latency access for therapists.
-- We will compare CPU vs. GPU serving options to optimize performance and cost.
-- **Difficulty point attempted**: Develop multiple serving options (CPU vs. GPU).
+5.  **Clone the Project Repository:**
+    In a new terminal window (or another `screen`/`tmux` window if rclone is running in your current one):
+    ```bash
+    git clone [https://github.com/Sanjeevan1998/ml-ops-project.git](https://github.com/Sanjeevan1998/ml-ops-project.git)
+    cd ml-ops-project/code/serving_dummy
+    ```
+    The `serving_dummy` directory is the main working area for this part of the project.
 
-#### Unit 7 (Monitoring):
-- We satisfy the requirement for monitoring model performance and resource utilization using Prometheus and Grafana.
-- We will implement automated load tests to evaluate system performance under various conditions.
-- We will monitor for data and model drift, triggering automatic retraining when necessary.
-- **Difficulty point attempted**: Monitor data drift/model degradation and implement automatic retraining.
+6.  **Prepare the ONNX Model (Quantization):**
+    * We found that an INT8 quantized ONNX model gives good performance. This model is created from our team's fine-tuned Legal-BERT.
+    * The script [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py) handles exporting the PyTorch model to ONNX and then quantizing it.
+    * This script expects the original fine-tuned PyTorch model to be at `/mnt/object-store-persist-group36/model/Legal-BERT-finetuned` (which is available through the rclone mount). It saves the optimized ONNX models to `/tmp/optimized_models/` on the VM.
+    * To create the quantized model, run this from the `serving_dummy` directory:
+        ```bash
+        python3 src/processing/quantize_onnx_model.py
+        ```
+    * The quantized model will then be ready at `/tmp/optimized_models/legal_bert_finetuned_onnx_int8_quantized/`. Our Docker setup will mount this path into the container.
 
-### Specific numbers and details:
-- **Serving Requirements**:
-  - **Latency requirement**: <100ms per inference
-  - **Concurrency requirement**: ~50 simultaneous requests
-- **Monitoring Metrics**:
-  - Track latency, throughput, and resource utilization (CPU/GPU usage).
-- **Load Testing**:
-  - Simulate realistic user interactions with at least 100 concurrent users during load tests.
+7.  **Configure Docker Compose for Your VM (CPU or GPU):**
+    * Our project uses a single [`Dockerfile`](./Dockerfile) that can build an image for both CPU and GPU.
+    * The specific configuration for CPU or GPU deployment is managed in the [`docker-compose.yaml`](./docker-compose.yaml) file.
+    * We've provided example configurations for both CPU and GPU setups in the file [`info.txt`](./info.txt) *(Self-note: Make sure this file exists and is accurate, or embed the compose configurations here in the README using Markdown code blocks)*.
+    * **Action Required:** Look at [`info.txt`](./info.txt).
+        * If your VM is **CPU-only**, copy the CPU `docker-compose.yaml` content from `info.txt` and replace the current content of `docker-compose.yaml`.
+        * If your VM is **GPU-equipped** (and you've set up NVIDIA drivers and toolkit), copy the GPU `docker-compose.yaml` content from `info.txt` into `docker-compose.yaml`.
+    * Also, the `MODEL_DEVICE_PREFERENCE` environment variable (either in the Dockerfile or overridden in `docker-compose.yaml`) should be set to `"cpu"` (or `"auto"`) for CPU VMs, and `"cuda"` for GPU VMs.
 
-### Summary of Difficulty Points Attempted (Units 6 & 7):
+8.  **Build and Run Docker Containers:**
+    * With `docker-compose.yaml` correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
+        ```bash
+        docker compose up -d --build
+        ```
+    * This will build the Docker image (which can take ~2 minutes on a CPU node or ~10-12 minutes on a GPU node if it's the first time) and then start the API service, Prometheus, and Grafana.
+    * To check if the API started correctly and to see which device it's using (CPU or CUDA), you can view its logs:
+        ```bash
+        docker logs legal-search-api-dummy
+        ```
+        Look for lines indicating "Effective device: cpu" or "Effective device: cuda".
 
-| Unit | Difficulty Point Selected      | Explanation |
-|------|--------------------------------|-------------|
-| 6    | CPU vs. GPU serving comparison | We will evaluate performance and cost-effectiveness of serving models on CPU vs. GPU. |
-| 7    | Data drift/model degradation monitoring & automatic retraining | We will implement monitoring to detect drift and trigger retraining to maintain model accuracy. |
+**II. Model Serving (Unit 6)**
 
+*This section details how our LegalAI system serves inference requests, meeting the requirements of Unit 6.*
+
+*(Dummy text for now in case time runs out: We will describe our FastAPI application ([`src/api/main.py`](./src/api/main.py)), which provides a `/search_combined` endpoint for users to submit text queries or PDF files. We'll explain how it uses either our fine-tuned PyTorch model or the optimized ONNX INT8 model (selected via `MODEL_TYPE_TO_LOAD` env var) for generating embeddings. The system uses FAISS ([loaded from paths in `docker-compose.yaml`](./docker-compose.yaml)) for efficient similarity search. We explored model optimizations like ONNX conversion and INT8 quantization (see [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py)) and system optimizations like using FastAPI for asynchronous handling and Docker for containerization. Performance requirements (latency, throughput) were identified using load tests ([`src/test/load_test_api.py`](./src/test/load_test_api.py)), and the results of CPU vs. GPU serving are detailed in our performance comparison document ([`reports/model-serving/cpu_vs_gpu_performance.md`](./reports/model-serving/cpu_vs_gpu_performance.md)). This document also discusses our findings for the "Develop multiple options for serving" difficulty point.)*
+
+**III. Monitoring (Unit 7)**
+
+*This section explains our approach to evaluation and monitoring, addressing Unit 7 requirements.*
+
+*(Dummy text for now in case time runs out: Our system uses Prometheus for metrics collection, configured via [`monitoring/prometheus.yaml`](./monitoring/prometheus.yaml) and running as a service defined in [`docker-compose.yaml`](./docker-compose.yaml). Our FastAPI application ([`src/api/main.py`](./src/api/main.py)) is instrumented with custom Prometheus metrics (e.g., `query_embedding_duration_seconds`, `feedback_received_total`, `search_closest_distance`). These metrics can be visualized using Grafana, accessible at `http://<VM_FLOATING_IP>:3000` (default login admin/admin). We conducted load tests in our Chameleon staging environment using [`src/test/load_test_api.py`](./src/test/load_test_api.py) to evaluate performance under different loads. To "close the loop," we implemented a user feedback mechanism in the UI ([`src/api/templates/results.html`](./src/api/templates/results.html)) that logs feedback to `/app/feedback_data/feedback.jsonl` via the `/log_feedback` API endpoint. Our business-specific evaluation plan for LegalAI, focusing on metrics like reduction in review time and improved accuracy, is also discussed in our project report.)*
+
+**IV. Key Scripts and Their Roles**
+
+*This section briefly describes the purpose of important scripts related to this part of the project.*
+
+*(The following files were used for:
+* [`src/api/main.py`](./src/api/main.py): The core FastAPI application that serves search requests, handles different model types (PyTorch/ONNX), and exposes metrics.
+* [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py): Script responsible for taking the fine-tuned PyTorch model, exporting it to ONNX format, and then applying INT8 quantization to create an optimized model for serving.
+* [`src/processing/create_artifacts_from_object_storage.py`](./src/processing/create_artifacts_from_object_storage.py): An earlier script used to process PDFs from our team's object storage, chunk them, generate embeddings, and create the initial FAISS index and metadata files.
+* [`src/test/load_test_api.py`](./src/test/load_test_api.py): The asynchronous Python script used to perform load testing against the `/search_combined` API endpoint, measuring latency and throughput.
+* [`Dockerfile`](./Dockerfile): Defines how the Docker image for our `legal-search-api` service is built, including dependencies and environment setup.
+* [`docker-compose.yaml`](./docker-compose.yaml): Orchestrates the deployment of our `legal-search-api`, Prometheus, and Grafana services, managing networking, volumes, and environment variables.
+* [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf): PDF guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
 
 
 #### Data pipeline
