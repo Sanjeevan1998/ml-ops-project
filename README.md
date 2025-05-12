@@ -131,12 +131,16 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and monitoring dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
 
-### Summary of Difficulty Points Attempted (Units 4 & 5):
+#### Unit 4 (Model training at scale):
+- Trained/fine-tuned the legal-bert model using triplet data to train and retrain it on the production:
+    We fine-tune a pre-trained Legal-BERT model utilizing a specialized dataset composed of legal text triplets (anchor, positive, negative samples) to enhance its understanding of semantic similarity. This fine-tuning process is designed to be repeatable, allowing the model to be initially trained and subsequently retrained with new user feedback data from production to continuously improve its relevance and accuracy in retrieving similar case files.
+- Legal-BERT was chosen as our base model because it has been specifically pre-trained on a vast corpus of legal texts, endowing it with a strong understanding of legal terminology, context, and nuances. This domain-specific pre-training makes it significantly more effective and data-efficient to fine-tune for specialized legal NLP tasks, such as semantic similarity for case law, compared to generic language models. Its architecture is well-suited for capturing the complex relationships within legal documents.
 
-| Unit | Difficulty Point Selected      | Explanation |
-|------|--------------------------------|-------------|
-| 4    | Distributed training (Ray Train with DDP) | We will demonstrate training speedups by comparing single-GPU vs. multi-GPU training times. |
-| 5    | Hyperparameter tuning (Ray Tune) | We will use advanced tuning algorithms to efficiently optimize model performance. |
+#### Unit 5 (Model training infrastructure and platform):
+- We deployed a centralized MLflow tracking server (backed by PostgreSQL and MinIO) on a KVM@TACC instance, and our Python training scripts are instrumented with MLflow API calls to log all relevant parameters, metrics, and model artifacts to this remote server.
+- We meet this by deploying a Ray cluster (head and worker nodes) on a CHI@UC GPU node using Docker Compose, and our model training script is submitted as a job to this cluster via the ray job submit CLI for managed execution.
+- The Ray cluster setup provides the foundation to integrate Ray Tune for future automated hyperparameter optimization, enabling efficient exploration of model configurations.
+- Our fine-tuning strategy for Legal-BERT uses a technique called "triplet loss." The model is shown three pieces of legal text at a time: an "anchor" text, a "positive" text (that is similar to the anchor), and a "negative" text (that is different from the anchor). The model learns to make its internal understanding (embeddings) of the anchor and positive texts very close, while pushing the understanding of the anchor and negative texts further apart, thereby improving its ability to identify semantically similar legal documents.
 
 
 
