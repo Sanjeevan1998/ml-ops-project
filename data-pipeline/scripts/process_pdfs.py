@@ -1,59 +1,90 @@
-import pdfplumber
 import os
-import pandas as pd
 import re
+import csv
+import fitz  # PyMuPDF
+import torch
+from tqdm import tqdm
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Directories
-RAW_DIR = "/_data/raw_pdfs/"
-OUTPUT_DIR = "/_data/processed/"
+# Configuration
+PDF_DIR = "./data"
+OUTPUT_DIR = "./data/processed"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "processed_cases.csv")
+OUTPUT_FILE = "./case_metadata.csv"
+MODEL_NAME = "openlm-research/open_llama_3b"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-cases = []
+# Load Llama Model and Tokenizer
+print(f"Loading model {MODEL_NAME}...")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).to(DEVICE)
 
-# Filename sanitization function
-def sanitize_filename(filename):
-    # Remove special characters and replace spaces with underscores
-    base_name, ext = os.path.splitext(filename)
-    sanitized_name = re.sub(r"[^\w\s]", "", base_name).replace(" ", "_").lower()
-    return f"{sanitized_name}{ext}"
 
-# Process each PDF file
-for filename in os.listdir(RAW_DIR):
-    if filename.lower().endswith(".pdf"):
-        # Sanitize the filename
-        sanitized_filename = sanitize_filename(filename)
-        
-        # Rename the file to avoid issues during processing
-        old_path = os.path.join(RAW_DIR, filename)
-        new_path = os.path.join(RAW_DIR, sanitized_filename)
-        if old_path != new_path:
-            print(f"Renaming: {old_path} -> {new_path}")
-            os.rename(old_path, new_path)
+def extract_text_from_pdf(pdf_file):
+    """Extracts text from a single PDF file."""
+    with fitz.open(pdf_file) as doc:
+        text = ""
+        for page in doc:
+            text += page.get_text()
+    return text
 
-        # Process the sanitized file
-        try:
-            with pdfplumber.open(new_path) as pdf:
-                full_text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
 
-            # Extract metadata
-            case_name = re.search(r"([A-Z][\w\s.,\-]+ v\. [A-Z][\w\s.,\-]+)", full_text)
-            court = re.search(r"(Supreme Court|Court of Appeals|District Court|Family Court|Circuit Court|Appellate Division)", full_text)
-            date = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}", full_text)
+def generate_metadata(text):
+    """Generates structured metadata from raw case text using Llama."""
+    prompt = f"Extract the following metadata from this legal case document:\n1. Case Name\n2. Court\n3. Date of Decision\n4. Docket Number or Citation\n5. Judges Involved\n6. Summary of the Case\n\nDocument Text:\n{text}\n"  
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048).to(DEVICE)
+    outputs = model.generate(**inputs, max_length=4096, temperature=0.2)
+    metadata_raw = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+    
+    # Extract structured metadata
+    metadata_lines = metadata_raw.split("\n")
+    case_name = court = date = docket_number = judges = summary = ""
+    for line in metadata_lines:
+        if line.startswith("Case Name:"):
+            case_name = line.replace("Case Name:", "").strip()
+        elif line.startswith("Court:"):
+            court = line.replace("Court:", "").strip()
+        elif line.startswith("Date of Decision:"):
+            date = line.replace("Date of Decision:", "").strip()
+        elif line.startswith("Docket Number or Citation:"):
+            docket_number = line.replace("Docket Number or Citation:", "").strip()
+        elif line.startswith("Judges Involved:"):
+            judges = line.replace("Judges Involved:", "").strip()
+        elif line.startswith("Summary of the Case:"):
+            summary = line.replace("Summary of the Case:", "").strip()
+    
+    return [case_name, court, date, docket_number, judges, summary]
 
-            case_name = case_name.group(0) if case_name else "Unknown Case"
-            court = court.group(0) if court else "Unknown Court"
-            date = date.group(0) if date else "Unknown Date"
 
-            # Add to the cases list
-            cases.append([case_name, court, date, full_text[:1000]])
-            print(f"✅ Processed: {sanitized_filename}")
+def process_all_pdfs(pdf_dir):
+    """Processes all PDF files in the specified directory."""
+    metadata_list = []
+    for pdf_file in tqdm(os.listdir(pdf_dir)):
+        if pdf_file.lower().endswith(".pdf"):
+            full_path = os.path.join(pdf_dir, pdf_file)
+            raw_text = extract_text_from_pdf(full_path)
+            metadata = generate_metadata(raw_text)
+            if metadata:
+                metadata_list.append([pdf_file] + metadata)
+    return metadata_list
 
-        except Exception as e:
-            print(f"❌ Error processing {sanitized_filename}: {e}")
 
-# Save to CSV
-df = pd.DataFrame(cases, columns=["case_name", "court", "date", "summary"])
-df.to_csv(OUTPUT_FILE, index=False)
+def save_metadata(metadata_list, output_file):
+    """Saves the extracted metadata to a CSV file."""
+    headers = ["File Name", "Case Name", "Court", "Date of Decision", "Docket Number", "Judges Involved", "Summary"]
+    with open(output_file, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(metadata_list)
 
-print(f"✅ Processed {len(df)} cases into {OUTPUT_FILE}")
+
+def main():
+    print("Processing PDF files...")
+    metadata_list = process_all_pdfs(PDF_DIR)
+    save_metadata(metadata_list, OUTPUT_FILE)
+    print(f"Metadata saved to {OUTPUT_FILE}")
+
+
+if __name__ == "__main__":
+    main()
+

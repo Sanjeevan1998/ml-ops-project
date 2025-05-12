@@ -1,92 +1,14 @@
-version: "3.8"
 
 name: LexisRaw
 
 volumes:
   lexisraw:
     name: lexisraw
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/persistent/lexisraw
 
 services:
   # Data Extraction (Download and Unzip from NYU Box)
   extract-data:
     container_name: etl_extract_data
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/_data
-      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /_data
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "🗂️ Resetting dataset directory..."
-        rm -rf raw_pdfs
-        mkdir -p raw_pdfs
-        cd raw_pdfs
-
-        echo "🌐 Downloading dataset from NYU Box..."
-        curl -L https://nyu.box.com/shared/static/aiirowrixydy10weqxg3mmzvxdweumyy.zip -o LexisRaw.zip --verbose
-
-        echo "📦 Unzipping dataset..."
-        unzip -q LexisRaw.zip
-        rm -f LexisRaw.zip
-
-        echo "✅ Data extracted to /data/raw_pdfs/"
-        ls -lh /data/raw_pdfs/
-
-  # Process Cases and Generate Metadata (Combined)
-  processcases-and-createmetadata:
-    container_name: etl_process_cases
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/_data
-      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /_data/processed
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "📝 Extracting metadata and processing cases..."
-        pip install -r /data-pipeline/requirements.txt
-        python3 /data-pipeline/scripts/process_pdfs.py
-        python3 /data-pipeline/scripts/create_metadata.py
-        echo "✅ Processed cases and metadata saved."
-        echo "Listing contents of /data/processed after transform stage:"
-        ls -l /_data/processed
-
-  # Embedding Generation
-  create-embeddings:
-    container_name: etl_create_embeddings
-    image: python:3.11
-    user: root
-    volumes:
-      - lexisraw:/data
-      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
-    working_dir: /data/processed
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        echo "🔄 Generating embeddings..."
-        pip install -r /data-pipeline/requirements.txt
-        python3 /data-pipeline/scripts/create_embeddings.py
-        echo "✅ Embeddings generated."
-        echo "Listing contents of /data/processed after transform stage:"
-        ls -l /data/processed
-
-  # Triplet Generation
-  generate-triplets:
-    container_name: etl_generate_triplets
     image: python:3.11
     user: root
     volumes:
@@ -98,10 +20,44 @@ services:
       - -c
       - |
         set -e
-        echo "🔄 Generating triplets..."
+        echo "🗂️ Resetting dataset directory..."
+        rm -rf raw_pdfs
+        mkdir -p raw_pdfs
+        cd raw_pdfs
+
+        echo "🌐 Downloading dataset from NYU Box..."
+        curl -L https://nyu.box.com/shared/static/0dwwxxnic4datm4uoz9znu5htrokp2fq.zip -o LexisRaw.zip --verbose
+
+        echo "📦 Unzipping dataset..."
+        unzip -q LexisRaw.zip
+        rm -f LexisRaw.zip
+
+        echo "✅ Data extracted to /data"
+        ls -l /data
+
+  # Process Cases and Generate Metadata (Combined)
+  processcases-and-createmetadata:
+    container_name: etl_process_cases
+    image: python:3.11
+    volumes:
+      - lexisraw:/data
+      - /home/cc/ml-ops-project/data-pipeline:/data-pipeline
+    working_dir: /data/processed
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo "📝 Extracting metadata and processing cases..."
+        pip install --upgrade pip
+        pip uninstall numpy
+        pip uninstall torch
         pip install -r /data-pipeline/requirements.txt
-        python3 /data-pipeline/scripts/generate_triplets.py
-        echo "✅ Triplets generated."
+        python3 /data-pipeline/scripts/process_pdfs.py
+        #python3 /data-pipeline/scripts/create_metadata.py
+        echo "✅ Processed cases and metadata saved."
+        echo "Listing contents of /data/processed after transform stage:"
+        ls -l /data/processed
 
   # Data Upload
   load-data:
@@ -139,13 +95,6 @@ services:
         --multi-thread-streams=2 \
         --fast-list
 
-        # Upload embeddings
-        rclone copy /data/embeddings chi_uc:$RCLONE_CONTAINER/embeddings \
-        --progress \
-        --transfers=8 \
-        --checkers=4 \
-        --multi-thread-streams=2 \
-        --fast-list
 
         echo "✅ Data uploaded to object store."
         echo "Listing directories in container after load stage:"
