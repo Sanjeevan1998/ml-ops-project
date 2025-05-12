@@ -194,7 +194,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 
 1.  **Create a VM:**
     * You can create a CPU node (like an `m1.large`) on **KVM@TACC** or a GPU node (like a `gpu_rtx6000`) on **CHI@UC**.
-    * We've provided the Jupyter Notebook that shows how we created a CPU node at KVM@TACC using `python-chi`. You can find a PDF version of this notebook here: [`reports/model-serving/how_to_run_vm_in_kvmtacc.ipynb`](./reports/model-serving/how_to_run_vm_in_kvmtacc.ipynb).
+    * We've provided the Jupyter Notebook that shows how we created a CPU node at KVM@TACC using `python-chi`. You can find a PDF version of this notebook here: [`reports/model-serving/runvm.ipynb`](./reports/model-serving/runvm.ipynb).
         * This notebook covers creating the VM, getting a floating IP, and setting up security groups for necessary ports: 22 (SSH), 8000 (our FastAPI app), 3000 (Grafana), and 9090 (Prometheus).
 
 2.  **SSH into the VM:**
@@ -313,7 +313,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 * [`src/test/load_test_api.py`](./src/test/load_test_api.py): The asynchronous Python script used to perform load testing against the `/search_combined` API endpoint, measuring latency and throughput.
 * [`Dockerfile`](./Dockerfile): Defines how the Docker image for our `legal-search-api` service is built, including dependencies and environment setup.
 * [`docker-compose.yaml`](./docker-compose.yaml): Orchestrates the deployment of our `legal-search-api`, Prometheus, and Grafana services, managing networking, volumes, and environment variables.
-* [`reports/model-serving/how_to_run_vm_in_kvmtacc.ipynb`](./reports/model-serving/how_to_run_vm_in_kvmtacc.ipynb): guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
+* [`reports/model-serving/runvm.ipynb`](./reports/model-serving/runvm.ipynb): guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
 
 
 #### Data pipeline
