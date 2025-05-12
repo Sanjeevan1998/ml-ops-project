@@ -106,6 +106,20 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | Bootstrapping | [0_create_persistent_storage.ipnyb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/0_create_persistent_storage.ipynb) | This Notebook will initially clone this Repo from Github which contains all the Code help in Setting up the Persistent Storage Block on CHI@UC which is used throughout using terraform |
 | Bootstrapping | [1_key_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/1_key_setup.ipynb) | This will Setup the initial Key Pair with KVM@TACC, it is separated as it runs with Python Kernal and other run with Bash |
 | Bootstrapping | [2_k8s_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/2_k8s_setup.ipynb) | This will create the intial Infrastructure on KVM@TACC which includes Compute Node, Floating IP, Attached Storage. After Node creation this notebook will further Setup K8S using Ansible and KubeSpray and all required tools (MinIO, MLFlow, Postgres, Grafana, Prometheus, ArgoCD, ArgoWorkflows) all are running on single K8S |
+| Development | | #### Persistent Storage
+- Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
+- Volume Name: lexisraw
+- Mount Path: /mnt/persistent/lexisraw
+| Development | | #### 2. Offline Data-
+- Dataset: Case law files from LexisNexis.
+- Total Files: ~30,000 case law PDFs.
+- Sample Example:
+| Development | [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb) | #### 3. Data Pipeline: This will Create persistent storage and Use rclone and authenticate to object store from a compute instance |
+| Development | [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml) | #### ETL
+  - Extract - unzips data from the direct download link
+  - Transform - Extracts metadata from raw case law files
+  - Load - loads the data in object storage | 
+   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
 | Development | [1_create_initial_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/development/1_create_initial_deployment.ipynb) | This will create the Argo Workflows needed for building, training, promoting model as well as will setup the Helm Charts for different Environments |
 | Development | [1_Model_training_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/tree/main/notebooks/development/model_training/1_Model_training_setup.ipynb) |  Provisions a Chameleon Cloud GPU node and installs essential system software like Docker and NVIDIA drivers. |
 | Development | [2_Model_training_run.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/tree/main/notebooks/development/model_training/2_Model_training_run.ipynb) |  Guides through running the training script in a standalone Docker container, setting up a local MLflow instance for experiment tracking, and connecting to remote services. |
@@ -129,50 +143,6 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and monitoring dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
 
 
-### Detailed design plan
-
-<!-- In each section, you should describe (1) your strategy, (2) the relevant parts of the 
-diagram, (3) justification for your strategy, (4) relate back to lecture material, 
-(5) include specific numbers. -->
-
-#### Model training and training platforms
-
-
-We will fine-tune and integrate pre-trained open-source model to build the LegalAI system:
-- **Metadata Extractor**: Legal-BERT, used to extract structured fields such as involved parties, jurisdictions, legal principles, and outcomes from unstructured text.
-
-Training and hyperparameter tuning will be done using Ray Train and Ray Tune respectively, on Chameleon Cloud GPU nodes. All training experiments, metrics, and models will be versioned and tracked using MLFlow.
-
-### Relevant parts of the diagram:
-- Kubernetes Cluster → Monitoring & Experiment Tracking
-- Ray Cluster (Distributed Training & Hyperparameter Tuning)
-- MLFlow Server (Experiment Tracking)
-- GPU Nodes
-
-### Justification for our strategy:
-- **Models**: Legal-BERT brings domain-specific awareness, making it ideal for extracting metadata and understanding legal language.
-- **Distributed Training (Ray Train with DDP)**: Transformer models are computationally intensive and require significant GPU resources. Distributed training allows us to significantly reduce training time, enabling faster experimentation and iteration.
-- **Hyperparameter Tuning (Ray Tune)**: Legal text is complex and varies across jurisdictions. Hyperparameter optimization ensures model robustness across diverse document types.
-- **Experiment Tracking (MLFlow)**: MLFlow provides reproducibility, experiment management, and easy comparison of model performance across experiments, essential for systematic model development.
-
-### Relation back to lecture material (Units 4 & 5):
-
-#### Unit 4 (Model training at scale):
-- We satisfy the requirement to train and retrain at least one model (we train three).
-- We make reasonable, appropriate, and well-justified modeling choices (transformer models fine-tuned on relevant datasets).
-- **Difficulty point attempted**: Distributed training (Ray Train with DDP) to increase training velocity. We will conduct experiments comparing training times using one GPU vs. two GPUs, clearly documenting speedups and efficiency gains.
-
-#### Unit 5 (Model training infrastructure and platform):
-- We satisfy the requirement to host an experiment tracking server (MLFlow) on Chameleon and instrument our training code with logging calls.
-- We satisfy the requirement to run a Ray cluster and submit training jobs as part of our continuous training pipeline.
-- **Difficulty point attempted**: Hyperparameter tuning using Ray Tune, leveraging advanced tuning algorithms (e.g., Bayesian optimization, HyperBand) to efficiently optimize model performance.
-
-### Specific numbers and details:
-- **GPU Resources**: 2 GPUs, scheduled in 8-hour blocks, twice weekly.
-- **Distributed Training**: Ray Train with Distributed Data Parallel (DDP), comparing training times with 1 GPU vs. 2 GPUs.
-- **Hyperparameter Tuning**: Ray Tune with Bayesian optimization or HyperBand, exploring at least 10-20 hyperparameter configurations per model.
-- **Experiment Tracking**: MLFlow server hosted on Chameleon, logging all experiments, hyperparameters, metrics, and artifacts.
-
 ### Summary of Difficulty Points Attempted (Units 4 & 5):
 
 | Unit | Difficulty Point Selected      | Explanation |
@@ -184,14 +154,6 @@ Training and hyperparameter tuning will be done using Ray Train and Ray Tune res
 
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, 
 and which optional "difficulty" points you are attempting. -->
-
-
-
-#### Model serving and monitoring platforms
-
-### Model Serving (Unit 6) and Monitoring (Unit 7) for LegalAI
-
-*(Disclaimer: The work for model serving (Unit 6) and monitoring (Unit 7) was developed step-by-step inside the [`code/serving_dummy/`](./code/serving_dummy/) directory in this repository. We started with basic FastAPI, Prometheus, and Grafana containers. Through many small steps, we got to the point where our model serving API is working and we can monitor its performance. The instructions below explain how to get this part of our project running and see its features.)*
 
 **I. Setting Up the Environment on Chameleon Cloud**
 
@@ -409,17 +371,6 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 - **Automation and CI/CD**: **GitHub Actions** will be triggered on code commits, running tests and building **Docker** images. **ArgoCD** will then deploy the new versions to our **Kubernetes cluster**.
 - **Staged Deployment**: We will have three distinct environments (**staging, canary, production**) for gradual rollout of changes.
 - **Cloud-Native Principles**: Our application will be designed as a collection of **Docker containers**, with each component (models, APIs, data pipelines) deployed as a separate **microservice**.
-   
-
-## Deployment and Execution
-
-The Product is a Cloud Native application which can be bootstapped in multiple phases. The Development & Operations Lifecycle of the Product is distributed as follows. The Project can be launched on Trovi as [Legal AI - NLP CaseLaw Identifier](https://chameleoncloud.org/experiment/share/a49b98c4-fb07-41f0-a045-dd68735b7dc3)
-
-- **Boostrapping Phase** : In this Phase we will be setting up the initial Infrastructure which is defined as IaaC using Terraform Scripts and Ansible Playbooks
-- **Development Phase** : In this Phase we train the initial Model and also we evaluate our base performance we use GPU Machines and train Models using Ray Clusters.
-- **Runtime Phase** : In Runtime we Monitor the Performance of our Model where we Check for the Performance of the Model also monitor the model for Data drift
-- **Update Phase** : Once in the Runtime Phase if we observe issues or have bugs with our model or need to add new features we start back in the retraining phase where we make modifications to the existing model and then take the model till Production following a Staged Deployment
-- **End Phase** : In End Phase we shut down all our systems gracefully ensuring all consumed Chameleon Cloud Resources are released
 
 ## Data pipeline
 
