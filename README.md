@@ -136,12 +136,12 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 - Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
 - Volume Name: lexisraw
 - Mount Path: /mnt/persistent/lexisraw
-- [Persistent storage](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/persistent.png)
+- ![Persistent storage](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/persistent.png)
 
 #### 2. Offline Data
 - Dataset: Case law files from LexisNexis.
 - Total Files: ~30,000 case law PDFs.
-- Sample Example: [sample](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/images/SampleCaseLaw.png)
+- Sample Example: ![sample](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/images/SampleCaseLaw.png)
 
 Ground Truth: The metadata extracted (case name, court, date) serves as the ground truth for training and evaluation.
 
