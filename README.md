@@ -52,10 +52,10 @@ link to their contributions in all repos here. -->
 | Name                            | Responsible for| Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
 | All team members                |Idea formulation, value proposition, ML problem setup, integration|     NA                               |
-| Arnab Bhowal                   |Model Training|        https://github.com/Sanjeevan1998/mindful/commits/main/?author=arnabbhowal                            |
-| Sanjeevan Adhikari                   |Model Serving and Monitoring|             https://github.com/Sanjeevan1998/mindful/commits/main/?author=Sanjeevan1998                       |
-| Divya Chougule                   |Data Pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/mindful/commits/main/?author=divyaa25                   |
-| Vishwas Karale                   |Continous X Pipeline|                   https://github.com/Sanjeevan1998/mindful/commits/main/?author=vishwaskarale83                 |
+| Arnab Bhowal                   |Model Training|        https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=arnabbhowal                            |
+| Sanjeevan Adhikari                   |Model Serving and Monitoring|             https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=Sanjeevan1998                       |
+| Divya Chougule                   |Data Pipeline (Unit 8)|                 https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=divyaa25                   |
+| Vishwas Karale                   |Continous X Pipeline|                   https://github.com/Sanjeevan1998/ml-ops-project/commits/main/?author=vishwaskarale83                 |
 
 
 
@@ -292,9 +292,50 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 
 **II. Model Serving (Unit 6)**
 
-*This section details how our LegalAI system serves inference requests, meeting the requirements of Unit 6.*
+This section details how our LegalAI system serves inference requests, addressing the "must satisfy" requirements for Unit 6 and an extra difficulty point. All related code for this part is primarily within the [`code/serving_dummy/`](./code/serving_dummy/) directory.
 
-*(Dummy text for now in case time runs out: We will describe our FastAPI application ([`src/api/main.py`](./src/api/main.py)), which provides a `/search_combined` endpoint for users to submit text queries or PDF files. We'll explain how it uses either our fine-tuned PyTorch model or the optimized ONNX INT8 model (selected via `MODEL_TYPE_TO_LOAD` env var) for generating embeddings. The system uses FAISS ([loaded from paths in `docker-compose.yaml`](./docker-compose.yaml)) for efficient similarity search. We explored model optimizations like ONNX conversion and INT8 quantization (see [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py)) and system optimizations like using FastAPI for asynchronous handling and Docker for containerization. Performance requirements (latency, throughput) were identified using load tests ([`src/test/load_test_api.py`](./src/test/load_test_api.py)), and the results of CPU vs. GPU serving are detailed in our performance comparison document ([`reports/model-serving/cpu_vs_gpu_performance.md`](./reports/model-serving/cpu_vs_gpu_performance.md)). This document also discusses our findings for the "Develop multiple options for serving" difficulty point.)*
+1.  **Serving from an API Endpoint:**
+    * **How We Addressed It:** We built a web application using FastAPI that allows users to search for legal documents. Users can either type in a text query or upload a PDF document to find similar cases. The results are displayed on a web page.
+    * **Key Code/Files:**
+        * The main API logic with endpoints like `/search_combined` is in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * The user interface for searching is [`code/serving_dummy/src/api/templates/index.html`](./code/serving_dummy/src/api/templates/index.html).
+        * The page for displaying results is [`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html).
+    * **See It In Action:**
+        * Screenshot of the search page: [`reports/model-serving/Search.png`](./reports/model-serving/Search.png)
+        * Screenshot of the results page: [`reports/model-serving/Results.png`](./reports/model-serving/Results.png)
+
+2.  **Identify Requirements (Performance, etc.):**
+    * **How We Addressed It:** We thought about what kind of performance LegalAI would need to be useful for legal professionals. This includes how fast it should respond (latency), how many searches it can handle at once (throughput/concurrency), and the size of our models. We used our load testing script to gather data to help define these.
+    * **Key Code/Files for Testing:**
+        * Load testing was done using the script: [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py).
+        * Metrics are collected in Prometheus, configured in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+    * **Detailed Requirements Document:** [`reports/model-serving/Identifyrequirements.pdf`](./reports/model-serving/Identifyrequirements.pdf)
+
+3.  **Model Optimizations to Satisfy Requirements:**
+    * **How We Addressed It:** To make our model run faster and take up less space, we converted our fine-tuned Legal-BERT model into the ONNX format. Then, we applied INT8 quantization to make it even smaller and quicker, especially on CPUs. Our API can load and serve this optimized ONNX model.
+        * For example, our single file search (8 chunks) using the ONNX INT8 model on a CPU took about 3.59 seconds for embedding and core search logic.
+    * **Key Code/Files:**
+        * Script for converting to ONNX and quantizing: [`code/serving_dummy/src/processing/quantize_onnx_model.py`](./code/serving_dummy/src/processing/quantize_onnx_model.py) (this script also handles the initial export to ONNX).
+        * Our API loads the chosen model type (PyTorch or ONNX): [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+    * **Detailed Model Optimizations Report:** [`reports/model-serving/Modeloptimizations.pdf`](./reports/model-serving/Modeloptimizations.pdf)
+
+4.  **System Optimizations to Satisfy Requirements:**
+    * **How We Addressed It:** We used FastAPI for our API because it's good at handling many user requests at the same time (asynchronous). We also used Docker to package our application, which makes it easy to deploy consistently. These choices help our system support multiple users and respond without long delays. This is discussed in more detail in our "Extra Difficulty Point" section below, where we compare CPU and GPU performance.
+    * **Key Code/Files:**
+        * FastAPI application: [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * Docker setup: [`code/serving_dummy/Dockerfile`](./code/serving_dummy/Dockerfile) and [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+
+5.  **Extra Difficulty Point: Develop Multiple Options for Serving (CPU vs. GPU Comparison)**
+    * **How We Addressed It:** We set up and tested our LegalAI service on two different types of virtual machines on Chameleon Cloud: a standard CPU instance (`m1.large` at KVM@TACC) and a more powerful GPU instance (RTX 6000 at CHI@UC). We used our ONNX INT8 quantized model for these tests.
+        * **CPU:** A single file search (8 chunks) took about **3.59 seconds**. Under a load of 5 concurrent users, it handled about **0.42 requests per second (RPS)** with an average latency of **12.46 seconds**, and 11% of requests failed. With 10 concurrent users, performance degraded further (0.48 RPS, 23.93s latency, 21% errors).
+        * **GPU:** The same single file search took only about **1.56 seconds**. With 5 concurrent users, the GPU handled **1.12 RPS** with an average latency of **4.44 seconds** and no errors. At 10 concurrent users, it achieved **1.25 RPS** with 8.49s average latency and 10% errors.
+        * The GPU was significantly faster for individual tasks (especially embeddings) and handled concurrent users much better with lower latency and fewer errors up to a certain point. However, GPU instances are generally more expensive.
+    * **Key Code/Files:**
+        * API with dynamic device (CPU/GPU) selection logic: [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * Docker Compose configurations (one for CPU, one for GPU, managed by editing [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) as described in setup, or see examples in `info.txt`).
+        * The `python-chi` scripts for VM setup are referenced in [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf) (and would be adapted for GPU VM creation).
+    * **Detailed Report on CPU vs. GPU:** [`reports/model-serving/ExtraDifficultyPoint.pdf`](./reports/model-serving/ExtraDifficultyPoint.pdf)
+
 
 **III. Monitoring (Unit 7)**
 
@@ -373,7 +414,7 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 - Additionally, we will use **Ansible** to automate the configuration and setup of these infrastructure components, ensuring a consistent and reliable environment.
 
 **Automation and CI/CD**:
-- Our CI/CD pipeline will be implemented using **GitHub Actions** and **ArgoCD**. Whenever changes are made to our codebase (e.g., model updates, API changes, infrastructure modifications), the CI/CD pipeline will be triggered to:
+- Our CI/CD pipeline will be implemented using **Argo Workflows** and **ArgoCD**. Whenever changes are made to our codebase (e.g., model updates, API changes, infrastructure modifications), the CI/CD pipeline will be triggered to:
   - Automatically build and test the changes.
   - Package the application components (models, APIs, data pipelines) into **Docker containers**.
   - Deploy the containerized components to our **Kubernetes cluster** in a staged manner (**staging → canary → production**).
