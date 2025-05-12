@@ -1,17 +1,11 @@
-# Use an NVIDIA CUDA base image. Choose a version compatible with your target drivers/PyTorch/ONNXRT.
-# Example for CUDA 12.1 and cuDNN 8 (common for recent PyTorch/TF) on Ubuntu 22.04
-# Check NVIDIA NGC catalog or Docker Hub for available tags.
-# Make sure this CUDA version is compatible with the drivers you install on the host VM.
 FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
-    # Set a default model device preference, can be overridden in docker-compose
     # MODEL_DEVICE_PREFERENCE="gpu" \
     MODEL_DEVICE_PREFERENCE="cpu" \
-    # Default model paths (can be overridden in docker-compose)
     EMBEDDING_MODEL="/app/mounted_bucket_storage/model/Legal-BERT-finetuned" \
     ONNX_MODEL_PATH="/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized" \
     FAISS_INDEX_PATH="/app/mounted_bucket_storage/faissIndex/v1/real_index.faiss" \
@@ -30,21 +24,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set up a working directory
 WORKDIR /app
 
-# Copy requirements first to leverage Docker cache
+# Copy requirements  
 COPY ./requirements.txt /app/requirements.txt
 
 # Install Python dependencies
-# Ensure pip is upgraded
 RUN pip3 install --no-cache-dir --upgrade pip
 RUN pip3 install --no-cache-dir -r requirements.txt
-# If you needed a specific torch version for CUDA, you'd install it here, e.g.:
-# RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Copy the rest of the application code
 COPY ./src /app/src
-# COPY ./index /app/index
-# COPY ./metadata /app/metadata
-# PDF_DATA_DIR, hf_cache, feedback_data, mounted_bucket_storage, optimized_models_local will be mounted as volumes
 
 # Expose the port the app runs on
 EXPOSE 8000

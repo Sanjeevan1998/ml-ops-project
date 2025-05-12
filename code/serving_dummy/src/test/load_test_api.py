@@ -6,16 +6,14 @@ import argparse
 import logging
 from typing import List, Dict, Any
 
-# Configure basic logging for the script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# --- Configuration ---
-# DEFAULT_API_URL = "http://<VM_FLOATING_IP>:8000/search_combined" # REPLACE <VM_FLOATING_IP>
-DEFAULT_API_URL = "http://129.114.24.228:8000/search_combined" # REPLACE <VM_FLOATING_IP>
+
+DEFAULT_API_URL = "http://129.114.24.228:8000/search_combined" # this is my kvm's floating ip
 
 
-DEFAULT_PDF_PATH = os.path.join("real_pdfs", "Glover v. State.PDF") # Assumes real_pdfs is in the same dir or one level up if script is in src/test
+DEFAULT_PDF_PATH = os.path.join("real_pdfs", "Glover v. State.PDF") 
 DEFAULT_CONCURRENT_REQUESTS = 10
 DEFAULT_TOTAL_REQUESTS = 100
 DEFAULT_TOP_K = 1
@@ -26,8 +24,7 @@ async def send_request(session: aiohttp.ClientSession, url: str, pdf_path: str, 
     data.add_field('top_k', str(top_k))
     
     try:
-        # Try to open the file for each request to simulate unique file handles.
-        # For very high concurrency, consider opening once and seeking, but this is more realistic.
+
         with open(pdf_path, 'rb') as f:
             data.add_field('query_file',
                            f,
@@ -36,7 +33,7 @@ async def send_request(session: aiohttp.ClientSession, url: str, pdf_path: str, 
             
             start_time = time.monotonic()
             async with session.post(url, data=data) as response:
-                response_text = await response.text() # Read the response to ensure it's processed
+                response_text = await response.text() # 
                 end_time = time.monotonic()
                 latency = end_time - start_time
                 
@@ -70,7 +67,7 @@ async def run_load_test(url: str, pdf_path: str, num_concurrent: int, total_requ
     async with aiohttp.ClientSession() as session:
         overall_start_time = time.monotonic()
         
-        semaphore = asyncio.Semaphore(num_concurrent) # Limit concurrency
+        semaphore = asyncio.Semaphore(num_concurrent) 
 
         async def R_worker(req_num):
             async with semaphore:
@@ -104,7 +101,7 @@ async def run_load_test(url: str, pdf_path: str, num_concurrent: int, total_requ
             min_latency = min(latencies)
             max_latency = max(latencies)
             latencies.sort()
-            p95_latency = latencies[int(len(latencies) * 0.95)] if len(latencies) > 19 else (latencies[-1] if latencies else 0) # Simple P95
+            p95_latency = latencies[int(len(latencies) * 0.95)] if len(latencies) > 19 else (latencies[-1] if latencies else 0)
 
             logger.info(f"  Avg Latency (successful): {avg_latency:.4f}s")
             logger.info(f"  Min Latency (successful): {min_latency:.4f}s")
@@ -124,7 +121,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    # IMPORTANT: Replace <VM_FLOATING_IP> in the default URL if you haven't done so
     if "<VM_FLOATING_IP>" in args.url:
         print("Error: Please replace <VM_FLOATING_IP> in the script's DEFAULT_API_URL or provide --url argument.")
         exit(1)

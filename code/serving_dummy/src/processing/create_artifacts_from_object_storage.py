@@ -1,41 +1,37 @@
-# src/processing/create_artifacts_from_object_storage.py
 import numpy as np
 import faiss
 import pickle
 from sentence_transformers import SentenceTransformer
 import os
-import fitz  # PyMuPDF
+import fitz  
 import re
 import time
-import shutil # For creating/cleaning output directory
-import torch # Import torch to check for CUDA availability
+import shutil 
+import torch 
 
 print("Starting Artifact Generation from Object Storage Mount...")
 start_time = time.time()
 
-# --- Configuration ---
-# Hardcoded paths for model and source PDFs on the VM (via rclone mount)
+
 MODEL_PATH_ON_VM = '/mnt/object-store-persist-group36/model/Legal-BERT-finetuned'
 PDF_SOURCE_DIR_ON_VM = '/mnt/object-store-persist-group36/LexisRaw'
 
-# Output directory for generated artifacts on the VM (local staging)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '../../'))
 LOCAL_OUTPUT_BASE_DIR_NAME = 'generated_artifacts_from_os'
 OUTPUT_ARTIFACT_SUBDIR_NAME = 'faissIndex/v1'
 OUTPUT_ARTIFACT_DIR_ON_VM = os.path.join(PROJECT_ROOT_DIR, LOCAL_OUTPUT_BASE_DIR_NAME, OUTPUT_ARTIFACT_SUBDIR_NAME)
 
-MAX_FILES_TO_PROCESS = 8000  # For testing; change to a larger number or None for full processing
+MAX_FILES_TO_PROCESS = 8000  
 
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 50
 
-# --- Determine Device (GPU or CPU) ---
 if torch.cuda.is_available():
     device = 'cuda'
     print(f"CUDA (GPU) is available. Using device: {device}")
     try:
-        print(f"GPU Name: {torch.cuda.get_device_name(0)}") # Prints the name of the first GPU
+        print(f"GPU Name: {torch.cuda.get_device_name(0)}") 
     except Exception as e:
         print(f"Could not get GPU name: {e}")
 else:
@@ -43,7 +39,6 @@ else:
     print("CUDA (GPU) is not available or PyTorch CUDA version not installed. Using device: cpu")
 
 
-# --- Helper Function for Basic Chunking ---
 def simple_chunker(text, chunk_size, chunk_overlap):
     words = re.split(r'(\s+)', text)
     tokens = [word for word in words if word.strip()]
@@ -61,7 +56,6 @@ def simple_chunker(text, chunk_size, chunk_overlap):
             break
     return chunks
 
-# --- Main Script Logic ---
 print(f"Model path: {MODEL_PATH_ON_VM}")
 print(f"PDF source directory: {PDF_SOURCE_DIR_ON_VM}")
 print(f"Output artifact directory: {OUTPUT_ARTIFACT_DIR_ON_VM}")
@@ -142,7 +136,6 @@ if not all_chunks_data:
 
 print(f"\nLoading embedding model: {MODEL_PATH_ON_VM} using device: {device}...")
 try:
-    # Pass the determined device to SentenceTransformer
     embedder = SentenceTransformer(MODEL_PATH_ON_VM, device=device)
 except Exception as e:
     print(f"ERROR: Could not load SentenceTransformer model from '{MODEL_PATH_ON_VM}': {e}")
@@ -151,7 +144,6 @@ except Exception as e:
 
 print("Generating embeddings for all chunks (this may take a while)...")
 all_chunk_texts = [chunk['chunk_text'] for chunk in all_chunks_data]
-# The encode method will use the device specified during SentenceTransformer initialization
 embeddings = embedder.encode(all_chunk_texts, convert_to_numpy=True, show_progress_bar=True)
 print(f"Generated embeddings with shape: {embeddings.shape}")
 embedding_dimension = embeddings.shape[1]

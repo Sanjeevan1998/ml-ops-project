@@ -198,10 +198,8 @@
     </div>
 
     <script>
-        // Keep the original query context for feedback logging
         const originalQueryContext = {{ query|tojson }};
 
-        // Keep the sendFeedback function exactly the same
         async function sendFeedback(buttonElement, isCorrect) {
             const listItem = buttonElement.closest('li');
             const filename = listItem.getAttribute('data-filename');
@@ -245,7 +243,6 @@
                 // Re-enable buttons on error
                 feedbackButtonsDiv.querySelectorAll('button').forEach(btn => btn.disabled = false);
             }
-            // *** END OF CORRECTED BLOCK ***
         }
     </script>
 </body>

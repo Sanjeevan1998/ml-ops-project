@@ -4,29 +4,26 @@ import faiss
 import pickle
 from sentence_transformers import SentenceTransformer
 import os
-import fitz # PyMuPDF
+import fitz
 import re
 import time
 
 print("Starting REAL artifact generation...")
 start_time = time.time()
 
-# --- Configuration ---
 MODEL_NAME = '/mnt/object-store-persist-group36/model/Legal-BERT-finetuned'
-PDF_DIR = "real_pdfs" # Directory containing your 10 PDFs
-INDEX_DIR = "index" # Output directory for index/map
-METADATA_DIR = "metadata" # Output directory for metadata
-CHUNK_SIZE = 400  # Target size for text chunks (in tokens, approximate)
-CHUNK_OVERLAP = 50 # Number of tokens to overlap between chunks
+PDF_DIR = "real_pdfs" 
+INDEX_DIR = "index"
+METADATA_DIR = "metadata" 
+CHUNK_SIZE = 400  
+CHUNK_OVERLAP = 50 
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 os.makedirs(METADATA_DIR, exist_ok=True)
 
-# --- Helper Function for Basic Chunking ---
-# (More sophisticated chunking can be implemented using langchain etc. later)
 def simple_chunker(text, chunk_size, chunk_overlap):
-    words = re.split(r'(\s+)', text) # Split by spaces, keeping separators
-    tokens = [word for word in words if word.strip()] # Basic word tokenization
+    words = re.split(r'(\s+)', text) # 
+    tokens = [word for word in words if word.strip()]
 
     chunks = []
     start_idx = 0
