@@ -109,11 +109,11 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | Development | | #### Persistent Storage
 - Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
 - Volume Name: lexisraw
-- Mount Path: /mnt/persistent/lexisraw
+- Mount Path: /mnt/persistent/lexisraw |
 | Development | | #### 2. Offline Data-
 - Dataset: Case law files from LexisNexis.
 - Total Files: ~30,000 case law PDFs.
-- Sample Example:
+- Sample Example: 
 | Development | [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb) | #### 3. Data Pipeline: This will Create persistent storage and Use rclone and authenticate to object store from a compute instance |
 | Development | [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml) | #### ETL
   - Extract - unzips data from the direct download link
