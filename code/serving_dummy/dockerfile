@@ -9,7 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     # Set a default model device preference, can be overridden in docker-compose
-    MODEL_DEVICE_PREFERENCE="gpu" \
+    # MODEL_DEVICE_PREFERENCE="gpu" \
+    MODEL_DEVICE_PREFERENCE="cpu" \
     # Default model paths (can be overridden in docker-compose)
     EMBEDDING_MODEL="/app/mounted_bucket_storage/model/Legal-BERT-finetuned" \
     ONNX_MODEL_PATH="/app/optimized_models_local/legal_bert_finetuned_onnx_int8_quantized" \
