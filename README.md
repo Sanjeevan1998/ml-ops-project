@@ -313,7 +313,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 * [`src/test/load_test_api.py`](./src/test/load_test_api.py): The asynchronous Python script used to perform load testing against the `/search_combined` API endpoint, measuring latency and throughput.
 * [`Dockerfile`](./Dockerfile): Defines how the Docker image for our `legal-search-api` service is built, including dependencies and environment setup.
 * [`docker-compose.yaml`](./docker-compose.yaml): Orchestrates the deployment of our `legal-search-api`, Prometheus, and Grafana services, managing networking, volumes, and environment variables.
-* [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf): PDF guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
+* [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.ipynb): guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
 
 
 #### Data pipeline
