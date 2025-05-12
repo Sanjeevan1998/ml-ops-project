@@ -11,7 +11,7 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 1Gi
+          storage: 4Gi
 
   templates:
   - name: kaniko-build-flow
@@ -32,7 +32,7 @@ spec:
 
           while [ $i -le $MAX_RETRIES ]; do
             echo "Attempt $i of $MAX_RETRIES: Cloning repo..."
-            git clone --branch master https://github.com/teaching-on-testbeds/gourmetgram.git /mnt/workspace && break
+            git clone https://github.com/Sanjeevan1998/ml-ops-project.git /mnt/workspace && break
             echo "Git clone failed. Retrying in 5 seconds..."
             i=$((i + 1))
             sleep 5
@@ -50,11 +50,11 @@ spec:
     container:
       image: gcr.io/kaniko-project/executor:latest
       args:
-        - --dockerfile=/mnt/workspace/Dockerfile
-        - --context=/mnt/workspace
-        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:staging-1.0.0
-        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:canary-1.0.0
-        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:production-1.0.0
+        - --dockerfile=/mnt/workspace/code/serving_dummy/dockerfile
+        - --context=/mnt/workspace/code/serving_dummy
+        - --destination=registry.kube-system.svc.cluster.local:5000/legalai-app:staging-1.0.0
+        - --destination=registry.kube-system.svc.cluster.local:5000/legalai-app:canary-1.0.0
+        - --destination=registry.kube-system.svc.cluster.local:5000/legalai-app:production-1.0.0
         - --insecure
       volumeMounts:
         - name: workdir
