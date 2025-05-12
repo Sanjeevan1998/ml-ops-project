@@ -106,7 +106,7 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | Bootstrapping | [0_create_persistent_storage.ipnyb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/0_create_persistent_storage.ipynb) | This Notebook will initially clone this Repo from Github which contains all the Code help in Setting up the Persistent Storage Block on CHI@UC which is used throughout using terraform |
 | Bootstrapping | [1_key_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/1_key_setup.ipynb) | This will Setup the initial Key Pair with KVM@TACC, it is separated as it runs with Python Kernal and other run with Bash |
 | Bootstrapping | [2_k8s_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/bootstrap/2_k8s_setup.ipynb) | This will create the intial Infrastructure on KVM@TACC which includes Compute Node, Floating IP, Attached Storage. After Node creation this notebook will further Setup K8S using Ansible and KubeSpray and all required tools (MinIO, MLFlow, Postgres, Grafana, Prometheus, ArgoCD, ArgoWorkflows) all are running on single K8S |
-| Development | [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb) [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)| This will Create persistent storage and Use rclone and authenticate to object store from a compute instance |
+| Development | [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/1_create_server.ipynb) [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/2_object.ipynb)| This will Create persistent storage and Use rclone and authenticate to object store from a compute instance |
 | Development | [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml) | ETL - This will downloads the raw PDFs to the persistent storage, extracts text and metadata from PDFs and generates structured CSV files.Then loads processed data to object storage for downstream tasks. | 
 | Development | [1_create_initial_deployment.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/notebooks/development/1_create_initial_deployment.ipynb) | This will create the Argo Workflows needed for building, training, promoting model as well as will setup the Helm Charts for different Environments |
 | Development | [1_Model_training_setup.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/tree/main/notebooks/development/model_training/1_Model_training_setup.ipynb) |  Provisions a Chameleon Cloud GPU node and installs essential system software like Docker and NVIDIA drivers. |
@@ -129,6 +129,33 @@ The Product is a Cloud Native application which can be bootstapped in multiple p
 | **Any available GPU** | 2 GPUs (V100 or equivalent), 8-hour blocks, twice weekly | Required for fine-tuning Legal-BERT on large case law data. Also needed for distributed training via Ray. |
 | **Persistent Storage** | 20GB for entire project duration, we will scale down after monitoring the disk usage | Persistent storage is necessary to securely store raw and processed datasets, trained model artifacts, container images, and experiment tracking data (MLFlow). This ensures data persistence, reproducibility, and easy access across different stages of the pipeline. |
 | **Floating IPs** | 2 for entire project duration | One floating IP is required for public access to the model-serving API endpoints and monitoring dashboard. The second floating IP is needed for accessing internal services such as MLFlow experiment tracking and monitoring dashboards (Prometheus/Grafana). |
+
+## Data pipeline
+
+#### 1. Persistent Storage
+- Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
+- Volume Name: lexisraw
+- Mount Path: /mnt/persistent/lexisraw
+- [Persistent storage](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/persistent.png)
+
+#### 2. Offline Data
+- Dataset: Case law files from LexisNexis.
+- Total Files: ~30,000 case law PDFs.
+- Sample Example: [sample](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/images/SampleCaseLaw.png)
+
+Ground Truth: The metadata extracted (case name, court, date) serves as the ground truth for training and evaluation.
+
+#### 3. Data Pipeline
+   Create persistent storage and Use rclone and authenticate to object store from a compute instance
+   - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
+   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
+
+   #### ETL
+  - Extract - unzips data from the direct download link
+  - Transform - Extracts metadata from raw case law files
+  - Load - loads the data in object storage
+    [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
+
 
 ### Model Training
 #### Unit 4 (Model training at scale):
@@ -365,31 +392,3 @@ To ensure the smooth deployment procedure for updates, patch fixes for robustnes
 - **Staged Deployment**: We will have three distinct environments (**staging, canary, production**) for gradual rollout of changes.
 - **Cloud-Native Principles**: Our application will be designed as a collection of **Docker containers**, with each component (models, APIs, data pipelines) deployed as a separate **microservice**.
 
-## Data pipeline
-
-#### 1. Persistent Storage
-- Storage Type: Persistent block storage (Swift volume) mounted on the Chameleon node.
-- Volume Name: lexisraw
-- Mount Path: /mnt/persistent/lexisraw
-- 
-
-#### 2. Offline Data
-- Dataset: Case law files from LexisNexis.
-- Total Files: ~30,000 case law PDFs.
-- Sample Example:
-
-Ground Truth: The metadata extracted (case name, court, date) serves as the ground truth for training and evaluation.
-
-#### 3. Data Pipeline
-   Create persistent storage and Use rclone and authenticate to object store from a compute instance
-   - [1_create_server.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/1_create_server.ipynb)
-   - [2_object.ipynb](https://github.com/Sanjeevan1998/ml-ops-project/data-pipeline/2_object.ipynb)
-
-   #### ETL
-  - Extract - unzips data from the direct download link
-  - Transform - Extracts metadata from raw case law files
-  - Load - loads the data in object storage
-    [docker-compose-etl.yaml](https://github.com/Sanjeevan1998/ml-ops-project/blob/main/data-pipeline/docker/docker-compose-etl.yaml)
-
-#### 4. Create labeled data
-   
