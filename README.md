@@ -279,16 +279,22 @@ To run and test our model serving and monitoring setup, you'll first need a virt
     * Also, the `MODEL_DEVICE_PREFERENCE` environment variable (either in the Dockerfile or overridden in `docker-compose.yaml`) should be set to `"cpu"` (or `"auto"`) for CPU VMs, and `"cuda"` for GPU VMs.
 
 8.  **Build and Run Docker Containers:**
-    * With `docker-compose.yaml` correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
+    * Once `docker-compose.yaml` is correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
         ```bash
         docker compose up -d --build
         ```
-    * This will build the Docker image (which can take ~2 minutes on a CPU node or ~10-12 minutes on a GPU node if it's the first time) and then start the API service, Prometheus, and Grafana.
+    * This will build the Docker image (which can take ~2-5 minutes on a CPU node, or ~10-15 minutes on a GPU node if downloading base images for the first time and installing many dependencies) and then start the API service, Prometheus, and Grafana.
     * To check if the API started correctly and to see which device it's using (CPU or CUDA), you can view its logs:
         ```bash
         docker logs legal-search-api-dummy
         ```
-        Look for lines indicating "Effective device: cpu" or "Effective device: cuda".
+        Look for lines in the log indicating "Effective device: cpu" or "Effective device: cuda".
+    * **If everything started successfully, you can access the services at:**
+        * **LegalAI Search API (Frontend):** `http://<VM_FLOATING_IP>:8000/`
+        * **FastAPI Health Check:** `http://<VM_FLOATING_IP>:8000/health`
+        * **Prometheus:** `http://<VM_FLOATING_IP>:9090/`
+        * **Grafana:** `http://<VM_FLOATING_IP>:3000/` (default login: admin/admin)
+        *(Remember to replace `<VM_FLOATING_IP>` with the actual floating IP address of your Chameleon VM.)*
 
 **II. Model Serving (Unit 6)**
 
@@ -310,7 +316,7 @@ This section details how our LegalAI system serves inference requests, addressin
     * **How We Addressed It:** We thought about what kind of performance LegalAI would need to be useful for legal professionals. This includes how fast it should respond (latency), how many searches it can handle at once (throughput/concurrency), and the size of our models. We used our load testing script to gather data to help define these.
     * **Key Code/Files for Testing:**
         * Load testing was done using the script: [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py).
-        * Metrics are collected in Prometheus, configured in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * Metrics can be collected in Prometheus, but currently we have logs in [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
     * **Detailed Requirements Document:** [`reports/model-serving/Identifyrequirements.pdf`](./reports/model-serving/Identifyrequirements.pdf)
 
 3.  **Model Optimizations to Satisfy Requirements:**
@@ -318,7 +324,7 @@ This section details how our LegalAI system serves inference requests, addressin
         * For example, our single file search (8 chunks) using the ONNX INT8 model on a CPU took about 3.59 seconds for embedding and core search logic.
     * **Key Code/Files:**
         * Script for converting to ONNX and quantizing: [`code/serving_dummy/src/processing/quantize_onnx_model.py`](./code/serving_dummy/src/processing/quantize_onnx_model.py) (this script also handles the initial export to ONNX).
-        * Our API loads the chosen model type (PyTorch or ONNX): [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py).
+        * I tried using basic Pytorch model, onnx and quantized onnx. 
     * **Detailed Model Optimizations Report:** [`reports/model-serving/Modeloptimizations.pdf`](./reports/model-serving/Modeloptimizations.pdf)
 
 4.  **System Optimizations to Satisfy Requirements:**
@@ -339,11 +345,53 @@ This section details how our LegalAI system serves inference requests, addressin
     * **Detailed Report on CPU vs. GPU:** [`reports/model-serving/ExtraDifficultyPoint.pdf`](./reports/model-serving/ExtraDifficultyPoint.pdf)
 
 
-**III. Monitoring (Unit 7)**
+**III. Monitoring and Evaluation (Unit 7)**
 
-*This section explains our approach to evaluation and monitoring, addressing Unit 7 requirements.*
+This section explains our approach to evaluating and monitoring the LegalAI service, addressing the requirements for Unit 7. The core setup for monitoring is integrated with our services defined in [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
 
-*(Dummy text for now in case time runs out: Our system uses Prometheus for metrics collection, configured via [`monitoring/prometheus.yaml`](./monitoring/prometheus.yaml) and running as a service defined in [`docker-compose.yaml`](./docker-compose.yaml). Our FastAPI application ([`src/api/main.py`](./src/api/main.py)) is instrumented with custom Prometheus metrics (e.g., `query_embedding_duration_seconds`, `feedback_received_total`, `search_closest_distance`). These metrics can be visualized using Grafana, accessible at `http://<VM_FLOATING_IP>:3000` (default login admin/admin). We conducted load tests in our Chameleon staging environment using [`src/test/load_test_api.py`](./src/test/load_test_api.py) to evaluate performance under different loads. To "close the loop," we implemented a user feedback mechanism in the UI ([`src/api/templates/results.html`](./src/api/templates/results.html)) that logs feedback to `/app/feedback_data/feedback.jsonl` via the `/log_feedback` API endpoint. Our business-specific evaluation plan for LegalAI, focusing on metrics like reduction in review time and improved accuracy, is also discussed in our project report.)*
+Our basic monitoring dashboard setup in Grafana, showing some initial metrics, can be seen here:
+![Early Stage Grafana Dashboard](./reports/model-serving/earlyStageGrafana.jpg)
+*(Caption: Early Grafana setup showing basic metrics. We exported a JSON for a more detailed dashboard, but integrating it fully is a next step due to time constraints.)*
+
+Here’s how we addressed the specific Unit 7 requirements:
+
+1.  **Offline Evaluation of Model:**
+    * **Status:** Partially Covered (primarily by the team members responsible for model training).
+    * **Our Understanding:** This involves creating an automated plan to test the model with different types of data (standard cases, specific legal domains, known tricky scenarios) right after it's trained, using tools like MLFlow to log results, and then deciding if the model is good enough to be registered.
+    * **In `serving_dummy`:** Our current setup focuses on serving an already-trained model. The full offline evaluation pipeline is a broader team effort, integrating with the model training parts (Units 4 & 5) and CI/CD (Unit 3). For this serving component, we rely on receiving a validated model.
+
+2.  **Load Test in Staging:**
+    * **Status:** Covered.
+    * **How We Addressed It:** We developed an asynchronous load testing script, [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py). We used this script to send many concurrent requests to our API deployed on Chameleon (acting as our staging environment) to see how it performs under pressure. This was used for our CPU vs. GPU comparisons.
+    * **Surfacing Results:** Currently, the load test script outputs detailed results (RPS, latency, error rates) to the console. For a more advanced setup, these metrics could be pushed to Prometheus or logged in a way that Grafana can display them.
+
+3.  **Online Evaluation in Canary Environment:**
+    * **Status:** Partially Covered (Foundation Laid / Planned).
+    * **How We Addressed It:** Our load testing script ([`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py)) can serve as the "artificial users" for online evaluation. We can configure it to send various types of queries/PDFs.
+    * **Next Steps:** To do a full canary evaluation, we would deploy a new version of our model alongside the current one and direct a small percentage of these artificial user requests to it. We'd then compare performance and feedback before a full rollout. The current Docker setup can be adapted for this (e.g., by running two differently configured API services). A detailed plan for how the artificial users would represent the range of real user behaviors is an important next step.
+
+4.  **Close the Loop (Feedback and Retraining Data):**
+    * **Status:** Covered (Feedback Collection Implemented).
+    * **How We Addressed It:** We've implemented a way for users to give feedback on search results.
+        * The results page ([`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html)) has "Correct 👍" / "Incorrect 👎" buttons.
+        * This feedback is sent to the `/log_feedback` endpoint in our API ([`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py)).
+        * The API logs this feedback (query, result, feedback type, model used, device used) into a `feedback.jsonl` file located in the `/app/feedback_data/` directory inside the container (this directory is mounted from `feedback_data/` on the host VM as per [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml)).
+    * **Next Steps:** This collected feedback data, along with a portion of production queries and their results, would be saved and labeled to create new datasets for re-training our models, which is part of the broader MLOps cycle (Units 4, 5, 8).
+
+5.  **Define a Business-Specific Evaluation:**
+    * **Status:** Partially Covered (Metrics Defined, Plan to be Detailed).
+    * **How We Addressed It:** In our initial project proposal for LegalAI, we defined key business metrics:
+        * Reduction in time spent by legal professionals reviewing case documents.
+        * Improved accuracy in identifying relevant precedents.
+        * User satisfaction and usability.
+        * (Indirectly) Enhanced case outcomes.
+    * **Next Steps/Current Implementation:** The user feedback mechanism (point 4 above) directly helps us start measuring "User Satisfaction and Usability." For a full deployment, we would need to design specific A/B tests or user studies to measure the reduction in review time and improvement in accuracy compared to the non-ML status quo. This detailed measurement plan would be part of our full project documentation.
+
+**Monitoring Tools Setup:**
+* **Prometheus:** Collects metrics from our API. Configured in [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml) and runs as a service in [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+* **Custom Metrics:** Our FastAPI application ([`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py)) exposes custom metrics like `query_embedding_duration_seconds`, `faiss_search_duration_seconds`, `feedback_received_total`, and `search_closest_distance`, which include labels for model type and device used.
+* **Grafana:** Used for visualizing these metrics. It's deployed via [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) and can be accessed at `http://<VM_FLOATING_IP>:3000` (default login: admin/admin). We've started a basic dashboard and have an exported JSON for a more advanced one for future implementation.
+
 
 **IV. Key Scripts and Their Roles**
 
