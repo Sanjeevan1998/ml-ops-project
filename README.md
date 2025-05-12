@@ -356,8 +356,7 @@ Our basic monitoring dashboard setup in Grafana, showing some initial metrics, c
 Here’s how we addressed the specific Unit 7 requirements:
 
 1.  **Offline Evaluation of Model:**
-    * **Status:** Partially Covered (primarily by the team members responsible for model training).
-    * **Our Understanding:** This involves creating an automated plan to test the model with different types of data (standard cases, specific legal domains, known tricky scenarios) right after it's trained, using tools like MLFlow to log results, and then deciding if the model is good enough to be registered.
+    * **Status:** Not fully Covered .
     * **In `serving_dummy`:** Our current setup focuses on serving an already-trained model. The full offline evaluation pipeline is a broader team effort, integrating with the model training parts (Units 4 & 5) and CI/CD (Unit 3). For this serving component, we rely on receiving a validated model.
 
 2.  **Load Test in Staging:**
@@ -384,27 +383,40 @@ Here’s how we addressed the specific Unit 7 requirements:
         * Reduction in time spent by legal professionals reviewing case documents.
         * Improved accuracy in identifying relevant precedents.
         * User satisfaction and usability.
-        * (Indirectly) Enhanced case outcomes.
     * **Next Steps/Current Implementation:** The user feedback mechanism (point 4 above) directly helps us start measuring "User Satisfaction and Usability." For a full deployment, we would need to design specific A/B tests or user studies to measure the reduction in review time and improvement in accuracy compared to the non-ML status quo. This detailed measurement plan would be part of our full project documentation.
 
 **Monitoring Tools Setup:**
-* **Prometheus:** Collects metrics from our API. Configured in [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml) and runs as a service in [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
+* **Prometheus:** Collects metrics from our API.(Not fully complete) Configured in [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml) and runs as a service in [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml).
 * **Custom Metrics:** Our FastAPI application ([`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py)) exposes custom metrics like `query_embedding_duration_seconds`, `faiss_search_duration_seconds`, `feedback_received_total`, and `search_closest_distance`, which include labels for model type and device used.
-* **Grafana:** Used for visualizing these metrics. It's deployed via [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) and can be accessed at `http://<VM_FLOATING_IP>:3000` (default login: admin/admin). We've started a basic dashboard and have an exported JSON for a more advanced one for future implementation.
+* **Grafana:** Used for visualizing these metrics (in progress). It's deployed via [`docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml) and can be accessed at `http://<VM_FLOATING_IP>:3000` (default login: admin/admin). We've started a basic dashboard and have an exported JSON for a more advanced one for future implementation.
 
 
 **IV. Key Scripts and Their Roles**
 
-*This section briefly describes the purpose of important scripts related to this part of the project.*
+This section briefly describes the purpose of important files and scripts used for the model serving and monitoring part of our LegalAI project. Most of these are located within the [`code/serving_dummy/`](./code/serving_dummy/) directory.
 
-*(The following files were used for:
-* [`src/api/main.py`](./src/api/main.py): The core FastAPI application that serves search requests, handles different model types (PyTorch/ONNX), and exposes metrics.
-* [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py): Script responsible for taking the fine-tuned PyTorch model, exporting it to ONNX format, and then applying INT8 quantization to create an optimized model for serving.
-* [`src/processing/create_artifacts_from_object_storage.py`](./src/processing/create_artifacts_from_object_storage.py): An earlier script used to process PDFs from our team's object storage, chunk them, generate embeddings, and create the initial FAISS index and metadata files.
-* [`src/test/load_test_api.py`](./src/test/load_test_api.py): The asynchronous Python script used to perform load testing against the `/search_combined` API endpoint, measuring latency and throughput.
-* [`Dockerfile`](./Dockerfile): Defines how the Docker image for our `legal-search-api` service is built, including dependencies and environment setup.
-* [`docker-compose.yaml`](./docker-compose.yaml): Orchestrates the deployment of our `legal-search-api`, Prometheus, and Grafana services, managing networking, volumes, and environment variables.
-* [`reports/model-serving/runvm.ipynb`](./reports/model-serving/runvm.ipynb): guide (from a Jupyter Notebook) on provisioning the Chameleon VM.)*
+* **API and Serving Logic:**
+    * [`code/serving_dummy/src/api/main.py`](./code/serving_dummy/src/api/main.py): This is the heart of our service. It's a FastAPI application that handles incoming search requests (text or PDF), uses our machine learning models (PyTorch or ONNX) to understand the query, searches our FAISS index for relevant legal documents, and sends back the results. It also exposes custom metrics for Prometheus.
+    * [`code/serving_dummy/src/api/templates/index.html`](./code/serving_dummy/src/api/templates/index.html): The simple webpage where users can type their search or upload a PDF.
+    * [`code/serving_dummy/src/api/templates/results.html`](./code/serving_dummy/src/api/templates/results.html): The webpage that displays the search results and allows users to give feedback.
+
+* **Model Processing and Optimization Scripts (in [`code/serving_dummy/src/processing/`](./code/serving_dummy/src/processing/)):**
+    * [`export_to_onnx.py`](./code/serving_dummy/src/processing/export_to_onnx.py): Takes our fine-tuned PyTorch model (Legal-BERT) and converts it into the ONNX format. This is the first step for optimizing the model.
+    * [`quantize_onnx_model.py`](./code/serving_dummy/src/processing/quantize_onnx_model.py): Takes the ONNX model (created by `export_to_onnx.py` or as its first step) and applies INT8 quantization. This makes the model smaller and often faster, especially on CPUs. The output is the quantized ONNX model that our API uses for serving.
+    * [`create_artifacts_from_object_storage.py`](./code/serving_dummy/src/processing/create_artifacts_from_object_storage.py): This script was used to process a larger set of PDF documents from our team's persistent object storage. It extracts text, chunks it, generates embeddings using our model, and builds the main FAISS index and metadata files that our API uses for searching.
+    * [`create_real_artifacts.py`](./code/serving_dummy/src/processing/create_real_artifacts.py): A script for processing a smaller, local set of actual PDF documents (from the `real_pdfs` folder) to create a FAISS index, map, and placeholder metadata. Useful for local testing with real data.
+    * [`create_dummy_artifacts.py`](./code/serving_dummy/src/processing/create_dummy_artifacts.py): Creates a very small, fake FAISS index and metadata using a few sample texts and a standard lightweight model. This was helpful for quick initial development and testing of the API structure without needing the full dataset or our custom model.
+
+* **Testing and Evaluation:**
+    * [`code/serving_dummy/src/test/load_test_api.py`](./code/serving_dummy/src/test/load_test_api.py): An asynchronous Python script we wrote to send many requests to our API at the same time. This helps us test how well the API performs under load (measuring speed, how many requests it can handle, and error rates).
+
+* **Deployment and Orchestration:**
+    * [`code/serving_dummy/Dockerfile`](./code/serving_dummy/Dockerfile): Contains the instructions to build the Docker image for our `legal-search-api` service. It sets up the Python environment, installs dependencies, and copies our application code. It's built on an NVIDIA CUDA base image so it can work for both CPU and GPU deployments.
+    * [`code/serving_dummy/docker-compose.yaml`](./code/serving_dummy/docker-compose.yaml): This file tells Docker Compose how to run all our services together: our `legal-search-api`, Prometheus (for collecting metrics), and Grafana (for showing dashboards). It manages things like networking between containers, what data volumes to use, and environment variables for configuration (like choosing CPU or GPU). *(Note: Specific configurations for CPU vs. GPU deployment are provided in [`code/serving_dummy/info.txt`](./code/serving_dummy/info.txt) to be copied into this file as needed).*
+    * [`code/serving_dummy/monitoring/prometheus.yaml`](./code/serving_dummy/monitoring/prometheus.yaml): The configuration file for Prometheus, telling it which services to get metrics from (like our API).
+
+* **Infrastructure Setup Guide:**
+    * [`reports/model-serving/how_to_run_vm_in_kvmtacc.pdf`](./reports/model-serving/how_to_run_vm_in_kvmtacc.pdf): A PDF version of our Jupyter Notebook that guides through programmatically setting up a CPU Virtual Machine on Chameleon Cloud at KVM@TACC using `python-chi`. This includes creating the VM, assigning a public IP, and configuring security groups. (This script can be adapted for GPU VM creation at CHI@UC).
 
 
 #### Data pipeline
