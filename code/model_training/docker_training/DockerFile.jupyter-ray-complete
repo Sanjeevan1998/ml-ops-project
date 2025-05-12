@@ -1,0 +1,35 @@
+FROM quay.io/jupyter/pytorch-notebook:cuda12-latest
+
+USER ${NB_UID}
+
+# Install Lightning
+RUN pip install --pre --no-cache-dir lightning && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Install MLFlow and pynvml library used by MLFlow for monitoring NVIDIA GPU
+RUN pip install --pre --no-cache-dir pynvml && \
+    pip install --pre --no-cache-dir mlflow && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Install libraries required by legal_bert_triplet_finetune_a100.py
+RUN pip install --no-cache-dir \
+    sentence-transformers>=2.7.0 \
+    datasets>=2.16.0 \
+    boto3>=1.34.0 \
+    accelerate>=0.25.0 \
+    pandas \
+    scikit-learn \
+    python-swiftclient \
+    python-keystoneclient \
+    requests \
+    && fix-permissions "${CONDA_DIR}" \
+    && fix-permissions "/home/${NB_USER}"
+
+# Install Ray
+RUN pip install --pre --no-cache-dir ray && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+EXPOSE 8888
