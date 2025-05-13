@@ -263,7 +263,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
     * We found that an INT8 quantized ONNX model gives good performance. This model is created from our team's fine-tuned Legal-BERT.
     * The script [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py) handles exporting the PyTorch model to ONNX and then quantizing it.
     * This script expects the original fine-tuned PyTorch model to be at `/mnt/object-store-persist-group36/model/Legal-BERT-finetuned` (which is available through the rclone mount). It saves the optimized ONNX models to `/tmp/optimized_models/` on the VM.
-    * To create the quantized model, run this from the `serving_dummy` directory (All the dependencies to run the script are in code/serving_dummy/requirements_script.txt):
+    * To create the quantized model, run this from the `serving_dummy` directory (All the dependencies to run the script are in code/serving_dummy/requirements_script.txt. I missed 3 imports : optimum, onnxruntime, onnx):
         ```bash
         python3 src/processing/quantize_onnx_model.py
         ```
