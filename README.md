@@ -218,7 +218,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
     Our application needs to access our team's fine-tuned model, the FAISS index, and metadata files. These are stored in our team's persistent object storage. Here's how to mount it:
     * Install rclone:
         ```bash
-        curl [https://rclone.org/install.sh](https://rclone.org/install.sh) | sudo bash
+        curl https://rclone.org/install.sh | sudo bash
         ```
     * Allow FUSE for non-root users (this might already be set):
         ```bash
@@ -254,7 +254,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
 5.  **Clone the Project Repository:**
     In a new terminal window (or another `screen`/`tmux` window if rclone is running in your current one):
     ```bash
-    git clone [https://github.com/Sanjeevan1998/ml-ops-project.git](https://github.com/Sanjeevan1998/ml-ops-project.git)
+    git clone https://github.com/Sanjeevan1998/ml-ops-project.git
     cd ml-ops-project/code/serving_dummy
     ```
     The `serving_dummy` directory is the main working area for this part of the project.
@@ -263,7 +263,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
     * We found that an INT8 quantized ONNX model gives good performance. This model is created from our team's fine-tuned Legal-BERT.
     * The script [`src/processing/quantize_onnx_model.py`](./src/processing/quantize_onnx_model.py) handles exporting the PyTorch model to ONNX and then quantizing it.
     * This script expects the original fine-tuned PyTorch model to be at `/mnt/object-store-persist-group36/model/Legal-BERT-finetuned` (which is available through the rclone mount). It saves the optimized ONNX models to `/tmp/optimized_models/` on the VM.
-    * To create the quantized model, run this from the `serving_dummy` directory:
+    * To create the quantized model, run this from the `serving_dummy` directory (All the dependencies to run the script are in code/serving_dummy/requirements_script.txt):
         ```bash
         python3 src/processing/quantize_onnx_model.py
         ```
@@ -278,12 +278,61 @@ To run and test our model serving and monitoring setup, you'll first need a virt
         * If your VM is **GPU-equipped** (and you've set up NVIDIA drivers and toolkit), copy the GPU `docker-compose.yaml` content from `info.txt` into `docker-compose.yaml`.
     * Also, the `MODEL_DEVICE_PREFERENCE` environment variable (either in the Dockerfile or overridden in `docker-compose.yaml`) should be set to `"cpu"` (or `"auto"`) for CPU VMs, and `"cuda"` for GPU VMs.
 
-8.  **Build and Run Docker Containers:**
-    * Once `docker-compose.yaml` is correctly set up for your VM type (CPU or GPU), run the following command from the `serving_dummy` directory:
+8.  **Install Docker Engine and Docker Compose Plugin:**
+    * **Install Required Packages:**
+        Before installing Docker, update your package list and install prerequisite packages to allow `apt` to use a repository over HTTPS and to manage GPG keys:
+        ```bash
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl gnupg
+        ```
+    * **Add Docker’s Official GPG Key:**
+        Create the directory for GPG keys (if it doesn't already exist) and add Docker’s official GPG key to ensure the authenticity of the Docker packages:
+        ```bash
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        ```
+    * **Set Up the Docker Repository:**
+        Add the official Docker repository to your system's APT sources. The following command automatically detects your system's architecture and Ubuntu version codename. (If you are not using Ubuntu, or if detection fails, you may need to adjust the `$(. /etc/os-release && echo "$VERSION_CODENAME")` part for your specific distribution):
+        ```bash
+        echo \
+          "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] \
+           https://download.docker.com/linux/ubuntu \
+           $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+           sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        ```
+    * **Install Docker Engine and Plugins:**
+        Update the package list again to include the Docker packages from the newly added repository, then install Docker Engine, Docker CLI, containerd, Docker Buildx plugin, and the Docker Compose plugin:
+        ```bash
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        ```
+    * **Verify Docker and Docker Compose Installation:**
+        Check that Docker Engine is installed correctly by querying its version:
+        ```bash
+        docker --version
+        ```
+        Verify the Docker Compose plugin installation by checking its version:
+        ```bash
+        docker compose version
+        ```
+        After these steps, the Docker service should be installed and running.
+
+8.  **Set Up and Run Docker Containers:**
+    * Before running the containers, ensure Docker (installed in the previous step) is running. The installation process usually starts and enables the Docker service.
+    * To ensure the Docker daemon is active, or to start it if it's not running, use the following command:
+        ```bash
+        sudo systemctl start docker
+        ```
+    * (Optional) To avoid starting Docker manually every time the VM reboots, enable it to start automatically (if not already enabled by the installation):
+        ```bash
+        sudo systemctl enable docker
+        ```
+    * Once `docker-compose.yaml` is correctly set up for your VM type (CPU or GPU), and Docker is running, run the following command from the `serving_dummy` directory:
         ```bash
         docker compose up -d --build
         ```
-    * This will build the Docker image (which can take ~2-5 minutes on a CPU node, or ~10-15 minutes on a GPU node if downloading base images for the first time and installing many dependencies) and then start the API service, Prometheus, and Grafana.
+    * This will build the Docker image (which can take ~2–5 minutes on a CPU node, or ~10–15 minutes on a GPU node if downloading base images for the first time and installing many dependencies), and then start the API service, Prometheus, and Grafana.
     * To check if the API started correctly and to see which device it's using (CPU or CUDA), you can view its logs:
         ```bash
         docker logs legal-search-api-dummy
@@ -293,7 +342,7 @@ To run and test our model serving and monitoring setup, you'll first need a virt
         * **LegalAI Search API (Frontend):** `http://<VM_FLOATING_IP>:8000/`
         * **FastAPI Health Check:** `http://<VM_FLOATING_IP>:8000/health`
         * **Prometheus:** `http://<VM_FLOATING_IP>:9090/`
-        * **Grafana:** `http://<VM_FLOATING_IP>:3000/` (default login: admin/admin)
+        * **Grafana:** `http://<VM_FLOATING_IP>:3000/` (Default login: admin / admin)
         *(Remember to replace `<VM_FLOATING_IP>` with the actual floating IP address of your Chameleon VM.)*
 
 **II. Model Serving (Unit 6)**
